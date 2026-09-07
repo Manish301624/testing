@@ -1,0 +1,179 @@
+Migrate this project's database layer from JSON file storage to PostgreSQL, and fix a dotenv loading bug. Make the following exact changes:
+
+1. FIX: server.ts is missing dotenv loading, so .env values (like DATABASE_URL) are never read at runtime. Add this as the very first line of server.ts, before all other imports:
+   import 'dotenv/config';
+
+2. Create a new file src/db/schema.sql with CREATE TABLE IF NOT EXISTS statements for 5 tables that match the existing TypeScript interfaces in src/types.ts:
+   - bookings (matches BookingSubmission: id, fullName, email, phone, companyName, serviceCategory, budgetRange, targetDate, projectDetails, instagramHandle, createdAt, status)
+   - reviews (matches ReviewItem: id, name, role, company, avatarUrl, rating, comment, date, verified, videoUrl, videoPosterUrl, videoDuration)
+   - contact_messages (matches ContactMessage: id, name, email, phone, subject, message, createdAt)
+   - callback_requests (matches CallbackRequest: id, name, phone, createdAt, status)
+   - whatsapp_inquiries (matches WhatsAppInquiry: id, context, sourceSection, projectName, reelTitle, serviceName, bookingRef, message, clientPhone, clientName, createdAt, userAgent)
+   Use snake_case column names, TEXT PRIMARY KEY for id, TIMESTAMPTZ DEFAULT now() for createdAt fields.
+
+3. Replace src/db/database.ts entirely: remove the JsonDatabase class (file-based JSON storage) and replace it with a PgDatabase class using the `pg` npm package (node-postgres). It must:
+   - Create a `Pool` using `connectionString: process.env.DATABASE_URL`
+   - On construction, run the schema.sql file against the pool, then seed the reviews table from CLIENT_REVIEWS (imported from src/data/mockData) only if the reviews table is empty
+   - Expose the EXACT SAME public method names as the old JsonDatabase class, but now all async/Promise-returning: getBookings(), getBookingById(id), insertBooking(booking), updateBooking(id, updates), deleteBooking(id), getReviews(), insertReview(review), getContactMessages(), insertContactMessage(message), getCallbackRequests(), insertCallbackRequest(request), updateCallbackStatus(id, status), getWhatsAppInquiries(), insertWhatsAppInquiry(inquiry), getStats(), isReady()
+   - Map snake_case DB columns back to the camelCase fields defined in src/types.ts
+   - Export a singleton: `export const db = new PgDatabase();`
+   - Log a clear console.error warning if process.env.DATABASE_URL is undefined
+
+4. Update src/db/initDb.ts to work with the new async PgDatabase instead of the old synchronous JsonDatabase (schema creation now happens automatically in the PgDatabase constructor, so this script should just wait briefly and print stats via `await db.getStats()`).
+
+5. In server.ts, every route handler that calls a db.* method must be updated: add `async` to the route handler function, and add `await` before every db.getX()/insertX()/updateX()/deleteX() call. This affects the routes for: /api/health, /api/reviews (GET+POST), /api/bookings (GET, GET/:id, POST, PATCH/:id), /api/contact (GET+POST), /api/whatsapp-inquiry (GET+POST), /api/callback-request (GET+POST+PATCH/:id). Do not change the request validation, response shape, or email-sending logic in these routes — only add async/await for the database calls.
+
+6. In package.json, add "pg" to dependencies and "@types/pg" to devDependencies (both already assumed present via npm install pg).
+
+7. In .env.example, add a DATABASE_URL line: DATABASE_URL="postgresql://user:password@localhost:5432/dbname" with a comment noting that special characters in the password (like @, :, /) must be URL-encoded.
+
+After making these changes, run `npm install` and confirm the project builds with `npm run build` and starts cleanly with `npm start` (with a real .env DATABASE_URL set), logging "[Database] PostgreSQL connected and schema ready." on startup.
+
+
+
+
+
+# React js Node Js Productions — VPS Deployment Guide
+
+**Stack:** React + Vite + Express (Node.js) + PostgreSQL
+**Hosting:** Hostinger VPS (KVM 2)
+**Domain:** hiddendirectors.com
+
+---
+
+## Step 1: VPS Setup aur Connect Karo
+
+hPanel me VPS → KVM 2 buy karo (agar pehle se nahi liya), Ubuntu 24.04 LTS OS choose karo. Root password set karo, IP note karo.
+
+```bash
+ssh root@your_vps_ip
+apt update && apt upgrade -y
+```
+
+---
+
+## Step 2: Firewall Configure Karo
+
+```bash
+ufw allow OpenSSH
+ufw allow 80
+ufw allow 443
+ufw enable
+```
+
+hPanel ke firewall section me bhi same 3 ports (22, 80, 443) allow karo.
+
+---
+
+## Step 3: Node, PM2, Nginx, PostgreSQL Install Karo
+
+```bash
+# Node.js
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt install nodejs -y
+
+# PM2 (process manager)
+npm install -g pm2
+
+# Nginx
+apt install nginx -y
+
+# PostgreSQL
+apt install postgresql postgresql-contrib -y
+
+# Git
+apt install git -y
+```
+
+---
+
+## Step 4: VPS pe PostgreSQL Database Banao
+
+```bash
+sudo -u postgres psql
+```
+
+Fir psql shell ke andar:
+
+```sql
+CREATE DATABASE hdp;
+CREATE USER postgres_user WITH ENCRYPTED PASSWORD 'apna_password';
+GRANT ALL PRIVILEGES ON DATABASE hdp TO postgres_user;
+\q
+```
+
+(Ya default `postgres` user ka password set karna ho to: `ALTER USER postgres PASSWORD 'apna_password';`)
+
+---
+
+## Step 5: Code VPS pe Deploy Karo
+
+GitHub se clone karo (recommended — future updates easy ho jayengi):
+
+```bash
+cd /var/www
+git clone your-repo-url hidden-directors
+cd hidden-directors
+```
+
+Ya `scp`/WinSCP se zip upload karke `unzip` bhi kar sakte ho.
+
+---
+
+## Step 6: .env File Production Values ke Saath Banao
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Ye values zaroor set karo:
+- `DATABASE_URL` — VPS ke local PostgreSQL ki details ke saath
+- `JWT_SECRET` — strong random string, purana default hata do
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` — production credentials
+- SMTP details — email notifications ke liye
+- `WHATSAPP_NUMBER`
+- `APP_URL=https://hiddendirectors.com`
+
+---
+
+## Step 7: Dependencies Install aur Production Build Banao
+
+```bash
+npm install
+npm run build
+```
+
+`npm install` `pg` package bhi install kar dega. `npm run build` Vite se frontend build karega aur `server.ts` ko `dist/server.cjs` me bundle karega. Build successful hone ke baad `dist` folder check karo ki `server.cjs` bana hai.
+
+---
+
+## Step 8: PM2 se App Start Karo aur DB Connection Verify Karo
+
+```bash
+NODE_ENV=production pm2 start dist/server.cjs --name hidden-directors
+pm2 logs hidden-directors
+```
+
+Logs me ye line dikhni chahiye:
+```
+[Database] PostgreSQL connected and schema ready.
+```
+
+Fir auto-start setup karo (VPS reboot hone par bhi app chalta rahe):
+
+```bash
+pm2 startup
+pm2 save
+```
+
+(`pm2 startup` jo command dikhaye wo copy-paste karke run karo.)
+
+---
+
+## Baaki Bache Steps (Next)
+
+- Nginx reverse proxy config karo (port 3000 → domain)
+- Domain DNS point karo (A record → VPS IP)
+- Certbot se free SSL lagao
+- Live site test karo end-to-end
