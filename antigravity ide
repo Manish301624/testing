@@ -1780,3 +1780,2901 @@ API_URL="http://localhost:5000"
 
 NODE_ENV="development"
 PORT="5000"
+
+###################################################################################################################################################################################################################################
+# TUITIONBUREAU — PHASE 2 MASTER IMPLEMENTATION PROMPT
+
+## IMPORTANT — READ BEFORE CODING
+
+You are continuing development of an existing enterprise application called **TuitionBureau**.
+
+**PHASE 1 IS ALREADY COMPLETED.**
+
+Do NOT rebuild Phase 1.
+
+Do NOT replace the existing architecture.
+
+Do NOT delete or rewrite working authentication, authorization, database configuration, Prisma setup, tenant isolation, RBAC, layouts, or existing UI.
+
+Your first task is to inspect the existing codebase and understand what was implemented in Phase 1.
+
+Then implement **PHASE 2 — CORE PEOPLE & TUITION OPERATIONS** on top of the existing system.
+
+This must be production-quality, scalable, maintainable, secure, responsive, and consistent with the existing architecture.
+
+---
+
+# 1. PRODUCT CONTEXT
+
+TuitionBureau is an enterprise tuition-management platform that allows tuition agencies/bureaus to manage:
+
+* Parents
+* Students
+* Tutors
+* Tuition requirements
+* Leads
+* Tutor matching
+* Assignments
+* Staff
+* Branches
+* Communication
+* Payments
+* Attendance
+* Scheduling
+* Reports
+* Multi-tenant organizations
+
+Phase 2 focuses specifically on:
+
+### CORE PEOPLE MANAGEMENT
+
+* Tutor Management
+* Parent Management
+* Student Management
+* Tuition Request Management
+* Basic Lead/CRM foundation
+* Tutor Matching foundation
+* Assignment foundation
+
+Do NOT implement advanced payments, attendance, scheduling, messaging, AI, or advanced analytics in this phase.
+
+Those will come in later phases.
+
+---
+
+# 2. FIRST — INSPECT THE EXISTING PROJECT
+
+Before making changes:
+
+1. Inspect the entire existing project structure.
+2. Identify the frontend architecture.
+3. Identify the backend architecture.
+4. Inspect Prisma schema.
+5. Inspect existing migrations.
+6. Inspect authentication implementation.
+7. Inspect RBAC implementation.
+8. Inspect organization/tenant handling.
+9. Inspect branch handling.
+10. Inspect API response format.
+11. Inspect error handling.
+12. Inspect frontend routing.
+13. Inspect existing dashboard/layout/components.
+14. Inspect existing form components.
+15. Inspect existing table components.
+16. Inspect existing validation system.
+17. Inspect existing React Query/TanStack Query setup.
+18. Inspect existing TypeScript types.
+19. Inspect existing seed system.
+20. Inspect existing tests.
+
+After inspection, extend the existing architecture.
+
+Do not introduce a second authentication system.
+
+Do not introduce a second database ORM.
+
+Do not introduce duplicate layouts.
+
+Do not introduce duplicate UI systems.
+
+---
+
+# 3. EXISTING STACK
+
+Continue using the existing Phase 1 stack.
+
+Expected stack:
+
+## Frontend
+
+* React
+* TypeScript
+* Vite
+* React Router
+* Tailwind CSS
+* shadcn/ui
+* Lucide icons
+* TanStack Query
+* React Hook Form
+* Zod
+* Recharts where useful
+
+## Backend
+
+* Node.js
+* TypeScript
+* Express
+
+## Database
+
+* PostgreSQL
+* Prisma ORM
+
+## Authentication
+
+Continue using the existing secure authentication system from Phase 1.
+
+## Architecture
+
+Continue using the existing monorepo architecture.
+
+Do not change technology unless absolutely necessary.
+
+---
+
+# 4. PHASE 2 OBJECTIVE
+
+Build the complete foundation for managing the people and tuition lifecycle.
+
+The basic business flow should become:
+
+Parent
+↓
+Student
+↓
+Tuition Requirement
+↓
+Lead
+↓
+Tutor Matching
+↓
+Tutor Selection
+↓
+Assignment
+
+The system must maintain proper relationships between all entities.
+
+---
+
+# 5. DATABASE MODEL EXTENSION
+
+Extend the existing Prisma schema.
+
+Do not duplicate existing Organization, Branch, User, Role, Permission, AuditLog, or authentication models.
+
+Add the following models where they do not already exist.
+
+---
+
+# 6. TUTOR MODEL
+
+Create a comprehensive Tutor entity.
+
+Suggested fields:
+
+```text
+Tutor
+- id
+- organizationId
+- branchId
+- userId nullable
+- tutorCode
+- firstName
+- lastName
+- email
+- phone
+- alternatePhone nullable
+- gender nullable
+- dateOfBirth nullable
+- profilePhoto nullable
+- bio nullable
+- qualification
+- specialization nullable
+- experienceYears
+- currentOccupation nullable
+- teachingMode
+- preferredSubjects
+- preferredGrades
+- preferredLocations
+- hourlyRateMin nullable
+- hourlyRateMax nullable
+- availabilityStatus
+- verificationStatus
+- status
+- address fields
+- city
+- state
+- postalCode
+- latitude nullable
+- longitude nullable
+- notes nullable
+- createdAt
+- updatedAt
+```
+
+Use appropriate enums.
+
+Example:
+
+```text
+TutorStatus
+- ACTIVE
+- INACTIVE
+- SUSPENDED
+- ARCHIVED
+
+TutorVerificationStatus
+- PENDING
+- VERIFIED
+- REJECTED
+
+TeachingMode
+- ONLINE
+- OFFLINE
+- HYBRID
+```
+
+Do not store arrays as strings if the existing database architecture supports proper relational tables.
+
+For scalable design, consider separate tables for:
+
+* TutorSubject
+* TutorGrade
+* TutorAvailability
+* TutorPreferredLocation
+* TutorQualification
+* TutorDocument
+
+---
+
+# 7. TUTOR SUBJECTS
+
+Create:
+
+```text
+Subject
+- id
+- organizationId
+- name
+- code
+- description
+- status
+- createdAt
+- updatedAt
+```
+
+Create tutor-subject relationship:
+
+```text
+TutorSubject
+- id
+- tutorId
+- subjectId
+- proficiencyLevel
+```
+
+Proficiency:
+
+```text
+BEGINNER
+INTERMEDIATE
+ADVANCED
+EXPERT
+```
+
+Subjects must be tenant-isolated.
+
+---
+
+# 8. GRADES / ACADEMIC LEVELS
+
+Create:
+
+```text
+Grade
+- id
+- organizationId
+- name
+- code
+- description
+- sortOrder
+- status
+```
+
+Examples:
+
+```text
+Nursery
+KG
+Grade 1
+Grade 2
+Grade 3
+...
+Grade 12
+Undergraduate
+Postgraduate
+Other
+```
+
+Create:
+
+```text
+TutorGrade
+- id
+- tutorId
+- gradeId
+```
+
+---
+
+# 9. PARENT MODEL
+
+Create a Parent entity.
+
+Suggested fields:
+
+```text
+Parent
+- id
+- organizationId
+- branchId
+- userId nullable
+- parentCode
+- firstName
+- lastName
+- email
+- phone
+- alternatePhone nullable
+- occupation nullable
+- preferredContactMethod
+- address
+- city
+- state
+- postalCode
+- country
+- notes nullable
+- status
+- createdAt
+- updatedAt
+```
+
+Parent status:
+
+```text
+ACTIVE
+INACTIVE
+PROSPECT
+ARCHIVED
+```
+
+---
+
+# 10. STUDENT MODEL
+
+Create:
+
+```text
+Student
+- id
+- organizationId
+- branchId
+- parentId
+- userId nullable
+- studentCode
+- firstName
+- lastName
+- email nullable
+- phone nullable
+- dateOfBirth nullable
+- gender nullable
+- gradeId
+- schoolName nullable
+- board nullable
+- academicYear nullable
+- address nullable
+- city nullable
+- state nullable
+- postalCode nullable
+- learningGoals nullable
+- specialRequirements nullable
+- notes nullable
+- status
+- createdAt
+- updatedAt
+```
+
+A parent must be able to have multiple students.
+
+Example:
+
+```text
+Parent
+ ├── Student 1
+ ├── Student 2
+ └── Student 3
+```
+
+---
+
+# 11. PARENT-STUDENT RELATIONSHIP
+
+Design the relationship so that it can support future requirements.
+
+If the system may later support multiple guardians, use:
+
+```text
+ParentStudent
+- id
+- parentId
+- studentId
+- relationshipType
+- isPrimary
+- createdAt
+```
+
+If using direct parentId on Student for Phase 2 simplicity, ensure the schema can be migrated later.
+
+Preferred enterprise architecture:
+
+Parent
+↕
+ParentStudent
+↕
+Student
+
+---
+
+# 12. TUITION REQUEST MODEL
+
+Create the core TuitionRequest entity.
+
+Suggested fields:
+
+```text
+TuitionRequest
+- id
+- organizationId
+- branchId
+- requestCode
+- parentId
+- studentId
+- subjectId
+- gradeId
+- teachingMode
+- location
+- preferredDays
+- preferredStartTime
+- preferredEndTime
+- sessionsPerWeek
+- durationPerSession
+- budgetMin
+- budgetMax
+- preferredTutorGender nullable
+- tutorRequirements nullable
+- learningObjectives nullable
+- additionalRequirements nullable
+- source
+- priority
+- status
+- assignedCoordinatorId nullable
+- createdAt
+- updatedAt
+```
+
+Request status:
+
+```text
+NEW
+CONTACTED
+QUALIFIED
+MATCHING
+TUTOR_PROPOSED
+TUTOR_SELECTED
+ASSIGNED
+ON_HOLD
+CANCELLED
+COMPLETED
+LOST
+```
+
+Priority:
+
+```text
+LOW
+MEDIUM
+HIGH
+URGENT
+```
+
+---
+
+# 13. TUITION REQUEST ACTIVITY
+
+Create an activity/history table:
+
+```text
+TuitionRequestActivity
+- id
+- organizationId
+- tuitionRequestId
+- userId
+- activityType
+- description
+- metadata nullable
+- createdAt
+```
+
+Activity examples:
+
+```text
+REQUEST_CREATED
+STATUS_CHANGED
+NOTE_ADDED
+TUTOR_MATCHED
+TUTOR_PROPOSED
+TUTOR_SELECTED
+ASSIGNED
+FOLLOW_UP
+```
+
+This will create an audit-style timeline for each tuition request.
+
+---
+
+# 14. LEAD / CRM FOUNDATION
+
+Create a Lead model.
+
+Suggested fields:
+
+```text
+Lead
+- id
+- organizationId
+- branchId
+- leadCode
+- firstName
+- lastName
+- email nullable
+- phone
+- source
+- interestedService
+- gradeId nullable
+- subjectId nullable
+- assignedToId nullable
+- status
+- priority
+- notes nullable
+- nextFollowUpAt nullable
+- convertedParentId nullable
+- convertedStudentId nullable
+- createdAt
+- updatedAt
+```
+
+Lead status:
+
+```text
+NEW
+CONTACTED
+QUALIFIED
+FOLLOW_UP
+CONVERTED
+LOST
+```
+
+Lead source:
+
+```text
+WEBSITE
+PHONE
+WHATSAPP
+REFERRAL
+SOCIAL_MEDIA
+ADVERTISEMENT
+WALK_IN
+EMAIL
+OTHER
+```
+
+---
+
+# 15. LEAD ACTIVITIES
+
+Create:
+
+```text
+LeadActivity
+- id
+- organizationId
+- leadId
+- userId
+- type
+- subject
+- description
+- outcome nullable
+- followUpAt nullable
+- createdAt
+```
+
+Examples:
+
+```text
+CALL
+EMAIL
+WHATSAPP
+MEETING
+NOTE
+FOLLOW_UP
+STATUS_CHANGE
+```
+
+---
+
+# 16. TUTOR MATCHING FOUNDATION
+
+Create a matching system.
+
+Do not build a simple random tutor list.
+
+Create a reusable matching service.
+
+The matching engine should consider:
+
+### Criteria
+
+1. Subject compatibility
+2. Grade compatibility
+3. Teaching mode
+4. Location
+5. Availability
+6. Budget
+7. Tutor verification
+8. Tutor status
+9. Experience
+10. Preferred tutor gender if specified
+
+Create:
+
+```text
+TutorMatch
+- id
+- organizationId
+- tuitionRequestId
+- tutorId
+- matchScore
+- subjectScore
+- gradeScore
+- locationScore
+- availabilityScore
+- budgetScore
+- experienceScore
+- verificationScore
+- status
+- notes
+- createdAt
+```
+
+Match status:
+
+```text
+SUGGESTED
+SHORTLISTED
+PROPOSED
+ACCEPTED
+REJECTED
+EXPIRED
+```
+
+---
+
+# 17. MATCHING SCORE
+
+Create a deterministic scoring system.
+
+Initial weighting:
+
+```text
+Subject:       25%
+Grade:         15%
+Location:      15%
+Availability:  15%
+Budget:        10%
+Experience:    10%
+Verification:   5%
+Teaching Mode:  5%
+```
+
+Total:
+
+```text
+100%
+```
+
+The matching engine must produce a score from:
+
+```text
+0 - 100
+```
+
+Return both:
+
+* total score
+* individual component scores
+
+Do not use AI for matching in Phase 2.
+
+Build the architecture so AI matching can be added later.
+
+---
+
+# 18. ASSIGNMENT MODEL
+
+Create the foundation for tutor assignments.
+
+```text
+Assignment
+- id
+- organizationId
+- branchId
+- assignmentCode
+- tuitionRequestId
+- studentId
+- parentId
+- tutorId
+- coordinatorId
+- subjectId
+- gradeId
+- startDate
+- expectedEndDate nullable
+- teachingMode
+- sessionsPerWeek
+- durationPerSession
+- agreedHourlyRate nullable
+- parentFee nullable
+- tutorCommission nullable
+- status
+- notes nullable
+- createdAt
+- updatedAt
+```
+
+Assignment status:
+
+```text
+PENDING
+ACTIVE
+PAUSED
+COMPLETED
+CANCELLED
+TERMINATED
+```
+
+Do not implement actual payment processing yet.
+
+Only store the basic commercial fields needed for future phases.
+
+---
+
+# 19. DOCUMENT MANAGEMENT FOUNDATION
+
+Tutors may eventually upload:
+
+* Qualification certificates
+* Identity verification documents
+* Experience certificates
+* Other documents
+
+Create a generic document metadata model:
+
+```text
+Document
+- id
+- organizationId
+- ownerType
+- ownerId
+- documentType
+- fileName
+- fileUrl
+- mimeType
+- fileSize
+- verificationStatus
+- uploadedBy
+- createdAt
+- updatedAt
+```
+
+Do not build complex cloud storage in Phase 2 unless infrastructure already exists.
+
+Create a clean storage abstraction so S3-compatible storage can be added later.
+
+---
+
+# 20. API ARCHITECTURE
+
+Follow the existing API conventions.
+
+Create REST APIs for:
+
+## Tutors
+
+```text
+GET    /api/tutors
+GET    /api/tutors/:id
+POST   /api/tutors
+PATCH  /api/tutors/:id
+DELETE /api/tutors/:id
+
+PATCH  /api/tutors/:id/status
+PATCH  /api/tutors/:id/verification
+
+GET    /api/tutors/:id/subjects
+POST   /api/tutors/:id/subjects
+DELETE /api/tutors/:id/subjects/:subjectId
+```
+
+## Subjects
+
+```text
+GET    /api/subjects
+POST   /api/subjects
+PATCH  /api/subjects/:id
+DELETE /api/subjects/:id
+```
+
+## Grades
+
+```text
+GET    /api/grades
+POST   /api/grades
+PATCH  /api/grades/:id
+DELETE /api/grades/:id
+```
+
+## Parents
+
+```text
+GET    /api/parents
+GET    /api/parents/:id
+POST   /api/parents
+PATCH  /api/parents/:id
+DELETE /api/parents/:id
+
+GET    /api/parents/:id/students
+```
+
+## Students
+
+```text
+GET    /api/students
+GET    /api/students/:id
+POST   /api/students
+PATCH  /api/students/:id
+DELETE /api/students/:id
+```
+
+## Tuition Requests
+
+```text
+GET    /api/tuition-requests
+GET    /api/tuition-requests/:id
+POST   /api/tuition-requests
+PATCH  /api/tuition-requests/:id
+DELETE /api/tuition-requests/:id
+
+PATCH  /api/tuition-requests/:id/status
+
+GET    /api/tuition-requests/:id/activities
+POST   /api/tuition-requests/:id/activities
+
+GET    /api/tuition-requests/:id/matches
+POST   /api/tuition-requests/:id/matches
+```
+
+## Leads
+
+```text
+GET    /api/leads
+GET    /api/leads/:id
+POST   /api/leads
+PATCH  /api/leads/:id
+DELETE /api/leads/:id
+
+PATCH  /api/leads/:id/status
+PATCH  /api/leads/:id/assign
+
+GET    /api/leads/:id/activities
+POST   /api/leads/:id/activities
+```
+
+## Matching
+
+```text
+POST /api/matching/tuition-requests/:id/run
+GET  /api/matching/tuition-requests/:id
+PATCH /api/matching/:matchId/status
+```
+
+## Assignments
+
+```text
+GET    /api/assignments
+GET    /api/assignments/:id
+POST   /api/assignments
+PATCH  /api/assignments/:id
+DELETE /api/assignments/:id
+
+PATCH /api/assignments/:id/status
+```
+
+---
+
+# 21. MULTI-TENANT SECURITY
+
+This is mandatory.
+
+Every tenant-owned record must be filtered by authenticated organization.
+
+Never trust:
+
+```text
+organizationId
+```
+
+from the frontend.
+
+The server must derive organizationId from authenticated user context.
+
+Example:
+
+```text
+req.auth.organizationId
+```
+
+Every query must enforce tenant isolation.
+
+Example concept:
+
+```text
+WHERE organizationId = authenticatedOrganizationId
+```
+
+Do this for:
+
+* Tutors
+* Parents
+* Students
+* Subjects
+* Grades
+* Tuition Requests
+* Leads
+* Matches
+* Assignments
+* Activities
+* Documents
+
+Also respect branch-level access where applicable.
+
+---
+
+# 22. RBAC PERMISSIONS
+
+Extend the existing permission system.
+
+Add permissions such as:
+
+```text
+tutors.view
+tutors.create
+tutors.update
+tutors.delete
+tutors.verify
+
+parents.view
+parents.create
+parents.update
+parents.delete
+
+students.view
+students.create
+students.update
+students.delete
+
+subjects.view
+subjects.create
+subjects.update
+subjects.delete
+
+grades.view
+grades.create
+grades.update
+grades.delete
+
+leads.view
+leads.create
+leads.update
+leads.delete
+leads.assign
+
+tuition_requests.view
+tuition_requests.create
+tuition_requests.update
+tuition_requests.delete
+tuition_requests.assign
+
+matching.view
+matching.run
+matching.update
+
+assignments.view
+assignments.create
+assignments.update
+assignments.delete
+```
+
+Map permissions to existing roles appropriately.
+
+Example:
+
+### SUPER_ADMIN
+
+Full access.
+
+### ORG_ADMIN
+
+Organization-wide access.
+
+### BRANCH_MANAGER
+
+Branch-level access.
+
+### COORDINATOR
+
+Access to:
+
+* Leads
+* Parents
+* Students
+* Tuition Requests
+* Tutors
+* Matching
+* Assignments
+
+### FINANCE_MANAGER
+
+Read relevant parent/student/tutor/assignment information.
+
+No unnecessary administrative permissions.
+
+### SUPPORT_AGENT
+
+Limited read/write access to customer-related records.
+
+### TUTOR
+
+Only access their own tutor profile, assigned students, and assigned assignments.
+
+### PARENT
+
+Only access their own parent profile and their students/requests.
+
+### STUDENT
+
+Only access their own student information and assigned tuition information.
+
+---
+
+# 23. FRONTEND NAVIGATION
+
+Extend the existing admin sidebar.
+
+Add:
+
+```text
+Dashboard
+
+People
+  ├── Tutors
+  ├── Parents
+  └── Students
+
+Tuition
+  ├── Tuition Requests
+  ├── Tutor Matching
+  └── Assignments
+
+CRM
+  └── Leads
+
+Configuration
+  ├── Subjects
+  └── Grades
+```
+
+Keep existing Phase 1 navigation.
+
+Do not remove existing pages.
+
+---
+
+# 24. TUTOR MANAGEMENT UI
+
+Create:
+
+```text
+/admin/tutors
+/admin/tutors/new
+/admin/tutors/:id
+/admin/tutors/:id/edit
+```
+
+Tutor list must include:
+
+* Tutor Code
+* Name
+* Email
+* Phone
+* Subjects
+* Experience
+* Teaching Mode
+* Verification
+* Status
+* Branch
+* Actions
+
+Add:
+
+* Search
+* Pagination
+* Status filter
+* Verification filter
+* Subject filter
+* Teaching mode filter
+* Branch filter
+* Sort
+* View
+* Edit
+* Delete
+
+Use server-side pagination.
+
+Do not load thousands of records into the browser.
+
+---
+
+# 25. TUTOR DETAIL PAGE
+
+Create an enterprise profile page.
+
+Sections:
+
+### Overview
+
+* Profile photo
+* Name
+* Tutor code
+* Status
+* Verification
+* Contact information
+
+### Professional
+
+* Qualification
+* Experience
+* Occupation
+* Bio
+* Specializations
+
+### Subjects
+
+Display subjects and proficiency.
+
+### Grades
+
+Display supported grades.
+
+### Teaching Preferences
+
+* Online
+* Offline
+* Hybrid
+* Preferred locations
+
+### Availability
+
+Create a basic availability structure for future scheduling.
+
+### Documents
+
+Display uploaded documents.
+
+### Assignments
+
+Show assigned tuition records.
+
+### Activity
+
+Show relevant history.
+
+---
+
+# 26. PARENT MANAGEMENT UI
+
+Routes:
+
+```text
+/admin/parents
+/admin/parents/new
+/admin/parents/:id
+/admin/parents/:id/edit
+```
+
+List:
+
+* Parent Code
+* Name
+* Phone
+* Email
+* Number of Students
+* Status
+* Branch
+* Created Date
+* Actions
+
+Parent detail:
+
+```text
+Profile
+Contact
+Address
+Students
+Tuition Requests
+Activity
+```
+
+---
+
+# 27. STUDENT MANAGEMENT UI
+
+Routes:
+
+```text
+/admin/students
+/admin/students/new
+/admin/students/:id
+/admin/students/:id/edit
+```
+
+List:
+
+* Student Code
+* Student Name
+* Parent
+* Grade
+* School
+* Subjects
+* Status
+* Branch
+* Actions
+
+Student detail:
+
+```text
+Overview
+Academic Information
+Parent/Guardian
+Tuition Requests
+Assignments
+Activity
+```
+
+---
+
+# 28. TUITION REQUEST UI
+
+Routes:
+
+```text
+/admin/tuition-requests
+/admin/tuition-requests/new
+/admin/tuition-requests/:id
+/admin/tuition-requests/:id/edit
+```
+
+List columns:
+
+* Request ID
+* Student
+* Parent
+* Subject
+* Grade
+* Mode
+* Budget
+* Priority
+* Status
+* Coordinator
+* Created
+* Actions
+
+Filters:
+
+* Status
+* Priority
+* Subject
+* Grade
+* Teaching Mode
+* Branch
+* Coordinator
+* Date range
+
+---
+
+# 29. TUITION REQUEST DETAIL
+
+Build an enterprise request workspace.
+
+Header:
+
+```text
+Request #TB-000001
+Status
+Priority
+```
+
+Sections:
+
+### Student
+
+Student profile summary.
+
+### Parent
+
+Parent contact information.
+
+### Requirement
+
+* Subject
+* Grade
+* Teaching mode
+* Location
+* Budget
+* Schedule preferences
+* Sessions per week
+* Duration
+* Requirements
+
+### Matching
+
+Display:
+
+```text
+Recommended Tutors
+```
+
+with:
+
+* Tutor
+* Match Score
+* Subject Score
+* Location Score
+* Availability Score
+* Budget Score
+* Experience
+* Verification
+* Action
+
+Actions:
+
+```text
+Run Matching
+Shortlist
+Propose Tutor
+Reject
+```
+
+### Activity Timeline
+
+Display all request activities chronologically.
+
+---
+
+# 30. LEAD MANAGEMENT UI
+
+Routes:
+
+```text
+/admin/leads
+/admin/leads/new
+/admin/leads/:id
+/admin/leads/:id/edit
+```
+
+Lead list:
+
+* Lead Code
+* Name
+* Phone
+* Source
+* Status
+* Priority
+* Assigned Staff
+* Next Follow-up
+* Created Date
+* Actions
+
+Filters:
+
+* Status
+* Source
+* Priority
+* Assigned Staff
+* Date range
+
+Lead detail:
+
+```text
+Lead Information
+Contact Information
+Interest
+Assigned Staff
+Activity Timeline
+Follow-up
+Conversion
+```
+
+---
+
+# 31. LEAD CONVERSION
+
+Create a conversion workflow.
+
+When a lead is converted:
+
+```text
+Lead
+↓
+Create Parent
+↓
+Create Student
+↓
+Create Tuition Request
+```
+
+Do not duplicate information unnecessarily.
+
+Keep references between:
+
+```text
+Lead
+Parent
+Student
+TuitionRequest
+```
+
+Conversion must happen inside a transaction.
+
+If one step fails, roll back the transaction.
+
+---
+
+# 32. ASSIGNMENT UI
+
+Routes:
+
+```text
+/admin/assignments
+/admin/assignments/:id
+```
+
+List:
+
+* Assignment Code
+* Student
+* Parent
+* Tutor
+* Subject
+* Start Date
+* Status
+* Coordinator
+* Teaching Mode
+
+Detail:
+
+```text
+Student
+Parent
+Tutor
+Subject
+Schedule Summary
+Commercial Summary
+Status
+Activity
+```
+
+Do not implement attendance or payments yet.
+
+---
+
+# 33. DASHBOARD EXTENSION
+
+Update the existing dashboard.
+
+Add Phase 2 statistics:
+
+### People
+
+```text
+Total Tutors
+Active Tutors
+Verified Tutors
+Total Parents
+Total Students
+```
+
+### Tuition
+
+```text
+New Tuition Requests
+Open Requests
+Matching Requests
+Active Assignments
+```
+
+### CRM
+
+```text
+New Leads
+Qualified Leads
+Converted Leads
+Conversion Rate
+```
+
+Use real database data.
+
+Do not use fake static values.
+
+---
+
+# 34. DASHBOARD CHARTS
+
+Add useful charts.
+
+Examples:
+
+### Leads by Status
+
+Pie/donut chart.
+
+### Tuition Requests by Status
+
+Bar chart.
+
+### Tutor Verification
+
+Chart showing:
+
+```text
+Verified
+Pending
+Rejected
+```
+
+### Monthly Requests
+
+Line chart.
+
+Use Recharts if it already exists in Phase 1.
+
+Keep charts responsive.
+
+---
+
+# 35. SEARCH AND FILTERING
+
+All major list pages must support:
+
+* Search
+* Pagination
+* Filters
+* Sorting
+
+Search must happen server-side.
+
+Do not retrieve the entire database into React.
+
+Example:
+
+```text
+GET /api/tutors?page=1&limit=20&search=john&status=ACTIVE
+```
+
+Default:
+
+```text
+page = 1
+limit = 20
+maxLimit = 100
+```
+
+---
+
+# 36. FORMS
+
+Use existing:
+
+* React Hook Form
+* Zod
+* Existing form components
+
+All forms must have:
+
+* Client validation
+* Server validation
+* Required field indicators
+* Helpful error messages
+* Loading state
+* Submit state
+* Success feedback
+* Error feedback
+
+Never rely only on frontend validation.
+
+---
+
+# 37. DATA TABLE
+
+Reuse the existing enterprise DataTable from Phase 1 if available.
+
+Required features:
+
+* Server-side pagination
+* Search
+* Sorting
+* Filters
+* Loading skeleton
+* Empty state
+* Error state
+* Row actions
+* Responsive behavior
+
+---
+
+# 38. DELETE CONFIRMATION
+
+Never immediately delete important business records.
+
+Use a confirmation dialog.
+
+For business entities, prefer soft-delete/archive where appropriate.
+
+Examples:
+
+```text
+Tutor → ARCHIVED
+Parent → ARCHIVED
+Student → ARCHIVED
+Lead → LOST/ARCHIVED
+```
+
+Do not destroy historical relationships unnecessarily.
+
+---
+
+# 39. AUDIT LOGGING
+
+Use the existing AuditLog system from Phase 1.
+
+Record important operations:
+
+```text
+TUTOR_CREATED
+TUTOR_UPDATED
+TUTOR_VERIFIED
+TUTOR_ARCHIVED
+
+PARENT_CREATED
+PARENT_UPDATED
+PARENT_ARCHIVED
+
+STUDENT_CREATED
+STUDENT_UPDATED
+STUDENT_ARCHIVED
+
+LEAD_CREATED
+LEAD_UPDATED
+LEAD_CONVERTED
+
+TUITION_REQUEST_CREATED
+TUITION_REQUEST_UPDATED
+TUITION_REQUEST_STATUS_CHANGED
+
+MATCHING_RUN
+TUTOR_SHORTLISTED
+TUTOR_PROPOSED
+
+ASSIGNMENT_CREATED
+ASSIGNMENT_UPDATED
+ASSIGNMENT_STATUS_CHANGED
+```
+
+Do not log sensitive information unnecessarily.
+
+---
+
+# 40. API ERROR HANDLING
+
+Continue using Phase 1 centralized error handling.
+
+Return consistent errors.
+
+Example:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid request",
+    "details": {}
+  }
+}
+```
+
+Do not expose:
+
+* Stack traces
+* Database credentials
+* SQL statements
+* Internal filesystem paths
+* Secrets
+
+---
+
+# 41. TRANSACTIONS
+
+Use Prisma transactions for operations that modify multiple related records.
+
+Especially:
+
+### Lead Conversion
+
+```text
+Lead
++
+Parent
++
+Student
++
+Tuition Request
+```
+
+must be transactional.
+
+### Assignment Creation
+
+Validate:
+
+* Tuition request exists
+* Student exists
+* Parent exists
+* Tutor exists
+* All belong to same organization
+* Tutor is active
+* Tutor is verified where required
+
+Then create assignment.
+
+---
+
+# 42. SECURITY REQUIREMENTS
+
+Maintain all Phase 1 security requirements.
+
+Additionally:
+
+* Never expose organization IDs unnecessarily.
+* Never trust branch IDs from clients.
+* Verify ownership of parent/student/tutor relationships.
+* Verify all foreign keys belong to the same organization.
+* Prevent cross-tenant relation injection.
+* Validate IDs.
+* Validate enum values.
+* Validate dates.
+* Validate numeric budget values.
+* Validate pagination.
+* Protect all mutation endpoints with authorization.
+* Protect sensitive tutor documents.
+* Do not expose private tutor information to unauthorized users.
+
+---
+
+# 43. PRIVACY
+
+Tutor and parent information is sensitive business data.
+
+Implement proper access control.
+
+Examples:
+
+A coordinator may see:
+
+```text
+Tutor contact information
+```
+
+A parent should only see information that the business chooses to expose.
+
+A tutor should not see:
+
+```text
+Other tutors
+Internal staff notes
+Internal commission information
+Private administrative notes
+```
+
+Design API responses with role-based data exposure.
+
+---
+
+# 44. SEED DATA
+
+Extend the existing seed script.
+
+Create realistic development data.
+
+Minimum:
+
+### Organizations
+
+Use the existing Phase 1 organization.
+
+### Branches
+
+Use existing branches.
+
+### Tutors
+
+At least:
+
+```text
+10 tutors
+```
+
+with different:
+
+* Subjects
+* Grades
+* Experience
+* Locations
+* Teaching modes
+* Rates
+* Verification statuses
+
+### Parents
+
+At least:
+
+```text
+10 parents
+```
+
+### Students
+
+At least:
+
+```text
+15 students
+```
+
+### Subjects
+
+At least:
+
+```text
+Mathematics
+English
+Physics
+Chemistry
+Biology
+Computer Science
+Hindi
+Social Science
+Accountancy
+Economics
+```
+
+### Grades
+
+At least:
+
+```text
+Grade 1
+Grade 2
+Grade 3
+Grade 4
+Grade 5
+Grade 6
+Grade 7
+Grade 8
+Grade 9
+Grade 10
+Grade 11
+Grade 12
+```
+
+### Leads
+
+At least:
+
+```text
+15 leads
+```
+
+### Tuition Requests
+
+At least:
+
+```text
+15 requests
+```
+
+### Assignments
+
+At least:
+
+```text
+5 assignments
+```
+
+Make the data realistic enough for testing filters, dashboards, and matching.
+
+---
+
+# 45. MATCHING TEST DATA
+
+Ensure seeded tutors and tuition requests produce different match scores.
+
+For example:
+
+```text
+Tutor A → 92
+Tutor B → 86
+Tutor C → 78
+Tutor D → 61
+Tutor E → 43
+```
+
+This allows the matching UI to be tested properly.
+
+---
+
+# 46. ROUTING
+
+Add routes while preserving all Phase 1 routes.
+
+Example:
+
+```text
+/admin/tutors
+/admin/tutors/new
+/admin/tutors/:id
+/admin/tutors/:id/edit
+
+/admin/parents
+/admin/parents/new
+/admin/parents/:id
+/admin/parents/:id/edit
+
+/admin/students
+/admin/students/new
+/admin/students/:id
+/admin/students/:id/edit
+
+/admin/leads
+/admin/leads/new
+/admin/leads/:id
+/admin/leads/:id/edit
+
+/admin/tuition-requests
+/admin/tuition-requests/new
+/admin/tuition-requests/:id
+/admin/tuition-requests/:id/edit
+
+/admin/assignments
+/admin/assignments/:id
+```
+
+Use existing protected-route architecture.
+
+---
+
+# 47. RESPONSIVE DESIGN
+
+Everything must work on:
+
+* Desktop
+* Laptop
+* Tablet
+* Mobile
+
+Admin dashboards should be desktop-first but remain usable on smaller screens.
+
+Tables should support:
+
+* Horizontal scrolling
+* Responsive column behavior
+* Mobile-friendly actions
+
+Forms should become single-column on mobile.
+
+---
+
+# 48. UI/UX QUALITY
+
+The interface must feel like a modern enterprise SaaS product.
+
+Use:
+
+* Clean spacing
+* Consistent typography
+* Professional cards
+* Clear status badges
+* Consistent buttons
+* Skeleton loading
+* Empty states
+* Error states
+* Confirmation dialogs
+* Toast notifications
+* Breadcrumbs
+* Tabs
+* Drawers/modals where appropriate
+
+Avoid:
+
+* Excessive gradients
+* Huge text
+* Cluttered dashboards
+* Random colors
+* Inconsistent spacing
+* Excessive animations
+* Placeholder lorem ipsum
+* Fake functionality
+
+---
+
+# 49. STATUS BADGES
+
+Create reusable status badges.
+
+Examples:
+
+```text
+ACTIVE
+INACTIVE
+PENDING
+VERIFIED
+REJECTED
+NEW
+QUALIFIED
+MATCHING
+ASSIGNED
+COMPLETED
+CANCELLED
+```
+
+Use a consistent semantic visual system.
+
+---
+
+# 50. LOADING / EMPTY / ERROR STATES
+
+Every page must properly handle:
+
+### Loading
+
+Show skeletons or loading indicators.
+
+### Empty
+
+Example:
+
+```text
+No tutors found.
+
+Add your first tutor to start building your tutor network.
+```
+
+### Error
+
+Show a useful error message and retry option.
+
+Do not show blank screens.
+
+---
+
+# 51. DATABASE MIGRATION
+
+Create a proper Prisma migration.
+
+Do not manually modify the database without migration files.
+
+Run:
+
+```bash
+npx prisma migrate dev --name phase2_core_operations
+```
+
+Then:
+
+```bash
+npx prisma generate
+```
+
+Update seed data.
+
+---
+
+# 52. TESTING
+
+Add backend tests for:
+
+### Authentication
+
+Ensure Phase 1 authentication still works.
+
+### RBAC
+
+Test role permissions.
+
+### Tenant Isolation
+
+Organization A must never access Organization B data.
+
+Test:
+
+* Tutors
+* Parents
+* Students
+* Leads
+* Tuition Requests
+* Assignments
+
+### Tutor API
+
+Test:
+
+```text
+Create
+Read
+Update
+Delete/Archive
+Search
+Filter
+```
+
+### Parent API
+
+Test CRUD.
+
+### Student API
+
+Test CRUD and parent relationship.
+
+### Lead Conversion
+
+Test complete transaction.
+
+### Matching
+
+Test score calculation.
+
+### Assignment
+
+Test creation validation.
+
+---
+
+# 53. MATCHING SERVICE ARCHITECTURE
+
+Create a dedicated backend service.
+
+Example:
+
+```text
+services/
+  tutorMatching.service.ts
+```
+
+The service should expose something similar to:
+
+```text
+matchTutorsForTuitionRequest(requestId)
+```
+
+Keep scoring logic separate from controllers.
+
+Do not place the entire algorithm inside Express route handlers.
+
+---
+
+# 54. BUSINESS LOGIC SEPARATION
+
+Use a clean architecture such as:
+
+```text
+routes
+controllers
+services
+repositories
+validators
+middleware
+utils
+```
+
+Do not put business logic directly into route files.
+
+If Phase 1 already uses a different architecture, follow the existing pattern rather than introducing an incompatible architecture.
+
+---
+
+# 55. FRONTEND API LAYER
+
+Use the existing TanStack Query setup.
+
+Create reusable hooks such as:
+
+```text
+useTutors()
+useTutor()
+useCreateTutor()
+useUpdateTutor()
+
+useParents()
+useParent()
+useCreateParent()
+useUpdateParent()
+
+useStudents()
+useStudent()
+useCreateStudent()
+useUpdateStudent()
+
+useLeads()
+useLead()
+useCreateLead()
+useUpdateLead()
+
+useTuitionRequests()
+useTuitionRequest()
+useCreateTuitionRequest()
+useUpdateTuitionRequest()
+
+useTutorMatches()
+useRunMatching()
+
+useAssignments()
+useAssignment()
+useCreateAssignment()
+useUpdateAssignment()
+```
+
+Do not duplicate API request logic inside every component.
+
+---
+
+# 56. TYPES
+
+Keep frontend/backend types synchronized.
+
+If Phase 1 has a shared types package, extend it.
+
+Create types for:
+
+```text
+Tutor
+Parent
+Student
+Subject
+Grade
+Lead
+TuitionRequest
+TutorMatch
+Assignment
+```
+
+Use strict TypeScript.
+
+Avoid:
+
+```text
+any
+```
+
+unless genuinely unavoidable.
+
+---
+
+# 57. FORM COMPONENTS
+
+Create reusable components where appropriate:
+
+```text
+TutorForm
+ParentForm
+StudentForm
+LeadForm
+TuitionRequestForm
+AssignmentForm
+```
+
+Break large forms into logical sections.
+
+Example Tutor Form:
+
+```text
+Personal Information
+Contact Information
+Professional Information
+Subjects
+Grades
+Teaching Preferences
+Location
+Rates
+Availability
+Documents
+```
+
+---
+
+# 58. FILTER COMPONENTS
+
+Create reusable filter controls:
+
+```text
+StatusFilter
+BranchFilter
+SubjectFilter
+GradeFilter
+DateRangeFilter
+TeachingModeFilter
+PriorityFilter
+AssignedUserFilter
+```
+
+Reuse them where appropriate.
+
+---
+
+# 59. PERFORMANCE
+
+Ensure:
+
+* Server-side pagination
+* Proper Prisma indexes
+* Efficient relation queries
+* No N+1 query problems
+* Debounced search
+* Query caching through TanStack Query
+* Lazy-loaded pages where appropriate
+
+Add database indexes for common filters:
+
+```text
+organizationId
+branchId
+status
+email
+phone
+createdAt
+subjectId
+gradeId
+```
+
+Use composite indexes where useful.
+
+---
+
+# 60. DOCUMENTATION
+
+Update:
+
+```text
+README.md
+```
+
+Add:
+
+```text
+Phase 2 setup
+Database migration
+Seed commands
+Available routes
+API endpoints
+Matching algorithm
+Role permissions
+```
+
+Also create/update:
+
+```text
+docs/phase-2.md
+```
+
+Document:
+
+* Database changes
+* API changes
+* Business workflows
+* Matching algorithm
+* RBAC changes
+* Testing
+
+---
+
+# 61. ENVIRONMENT
+
+Do not expose secrets.
+
+Continue using:
+
+```text
+.env
+.env.example
+```
+
+Do not commit `.env`.
+
+Ensure `.gitignore` contains:
+
+```text
+.env
+.env.local
+node_modules
+dist
+build
+```
+
+---
+
+# 62. OUT OF SCOPE
+
+Do NOT implement these in Phase 2:
+
+```text
+Advanced scheduling
+Calendar synchronization
+Attendance
+Automated attendance
+Payments
+Payment gateway
+Invoices
+Tutor commissions calculation
+Subscriptions
+Messaging
+Chat
+WhatsApp integration
+Email automation
+Push notifications
+Reviews
+Ratings
+Advanced reporting
+Advanced analytics
+AI tutor matching
+AI chatbot
+AI recommendations
+Mobile application
+Public tutor marketplace
+Public tutor search
+Advanced document verification
+Cloud storage infrastructure
+```
+
+These belong to later phases.
+
+Create clean extension points where necessary, but do not implement them.
+
+---
+
+# 63. IMPORTANT BUSINESS RULES
+
+Implement these rules.
+
+### Tutor
+
+A tutor should not become VERIFIED unless required profile information is present.
+
+### Student
+
+A student must belong to a parent/guardian.
+
+### Tuition Request
+
+A tuition request must have:
+
+* Parent
+* Student
+* Subject
+* Grade
+
+before entering the matching stage.
+
+### Matching
+
+Only eligible tutors should be matched.
+
+Exclude tutors who are:
+
+```text
+INACTIVE
+SUSPENDED
+ARCHIVED
+```
+
+and optionally exclude:
+
+```text
+REJECTED
+```
+
+verification status.
+
+### Assignment
+
+Only active/eligible tutors may be assigned.
+
+The tutor, student, parent, and tuition request must belong to the same organization.
+
+---
+
+# 64. DUPLICATE PREVENTION
+
+Implement sensible duplicate detection.
+
+For example:
+
+Parent:
+
+```text
+phone + organizationId
+email + organizationId
+```
+
+Tutor:
+
+```text
+email + organizationId
+phone + organizationId
+```
+
+Student:
+
+Use appropriate parent + student identity checks.
+
+Do not create duplicate records silently.
+
+Return a clear validation error.
+
+---
+
+# 65. AUDIT + TIMELINE
+
+Whenever important business state changes:
+
+```text
+Lead status changed
+Tuition request status changed
+Tutor verification changed
+Assignment status changed
+```
+
+create both:
+
+1. AuditLog
+2. Relevant business activity record
+
+where applicable.
+
+---
+
+# 66. FINAL QUALITY REQUIREMENTS
+
+Before finishing, run:
+
+```bash
+npm install
+```
+
+if needed.
+
+Then:
+
+```bash
+npx prisma generate
+```
+
+Then migration.
+
+Then seed.
+
+Then:
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
+
+Use the actual existing scripts if Phase 1 uses different names.
+
+Do not invent scripts that do not exist.
+
+Fix all TypeScript errors.
+
+Fix all lint errors.
+
+Fix all failing tests.
+
+Fix Prisma migration problems.
+
+Fix frontend build problems.
+
+---
+
+# 67. DO NOT BREAK PHASE 1
+
+After implementation verify:
+
+### Authentication
+
+* Login works
+* Logout works
+* Refresh works
+* Current user works
+
+### RBAC
+
+* Admin permissions work
+* Staff permissions work
+* Tutor restrictions work
+* Parent restrictions work
+* Student restrictions work
+
+### Tenant isolation
+
+Organization A cannot access Organization B.
+
+### Existing dashboard
+
+Still works.
+
+### Existing settings
+
+Still works.
+
+### Existing user management
+
+Still works.
+
+### Existing audit logs
+
+Still work.
+
+---
+
+# 68. ACCEPTANCE TESTS
+
+The following complete flow must work:
+
+## FLOW 1 — Create Tutor
+
+```text
+Admin
+→ Tutors
+→ Add Tutor
+→ Fill profile
+→ Select subjects
+→ Select grades
+→ Save
+→ Tutor appears in list
+→ Open profile
+→ Edit
+→ Update
+```
+
+## FLOW 2 — Create Parent + Student
+
+```text
+Admin
+→ Parents
+→ Add Parent
+→ Save
+→ Open Parent
+→ Add Student
+→ Save
+→ Student appears under parent
+```
+
+## FLOW 3 — Create Tuition Request
+
+```text
+Admin/Coordinator
+→ Tuition Requests
+→ Create Request
+→ Select Parent
+→ Select Student
+→ Select Subject
+→ Select Grade
+→ Enter requirements
+→ Save
+→ Request appears
+```
+
+## FLOW 4 — Match Tutor
+
+```text
+Open Tuition Request
+→ Run Matching
+→ System evaluates tutors
+→ Ranked tutors appear
+→ Match score shown
+→ Shortlist tutor
+```
+
+## FLOW 5 — Create Assignment
+
+```text
+Tuition Request
+→ Select tutor
+→ Create assignment
+→ Validate entities
+→ Assignment created
+→ Request status updated
+→ Assignment appears in Assignments
+```
+
+## FLOW 6 — Lead Conversion
+
+```text
+Lead
+→ Convert
+→ Parent created
+→ Student created
+→ Tuition Request created
+→ Lead marked CONVERTED
+```
+
+All of these must work end-to-end.
+
+---
+
+# 69. FINAL RESPONSE FORMAT
+
+After implementation, report:
+
+## 1. What was implemented
+
+List every major Phase 2 feature.
+
+## 2. Database changes
+
+List all new models and relationships.
+
+## 3. API endpoints
+
+List newly created endpoints.
+
+## 4. Frontend routes
+
+List newly created pages.
+
+## 5. RBAC changes
+
+List new permissions.
+
+## 6. Matching algorithm
+
+Explain scoring.
+
+## 7. Seed data
+
+Explain what development data was added.
+
+## 8. Tests
+
+Report:
+
+```text
+TypeScript: PASS/FAIL
+Lint: PASS/FAIL
+Tests: PASS/FAIL
+Prisma: PASS/FAIL
+Build: PASS/FAIL
+```
+
+## 9. Known issues
+
+Clearly list anything remaining.
+
+## 10. Next recommended phase
+
+Recommend **Phase 3 — Advanced CRM & Lead Management** only after Phase 2 is fully stable.
+
+---
+
+# 70. MOST IMPORTANT INSTRUCTION
+
+Do not generate a superficial demo.
+
+Build real functionality.
+
+Do not use fake data in production logic.
+
+Do not create buttons that do nothing.
+
+Do not create pages that are only visual mockups.
+
+Every major button must perform a real action.
+
+Every form must save to PostgreSQL.
+
+Every list must load from the API.
+
+Every mutation must validate permissions.
+
+Every tenant-owned query must enforce organization isolation.
+
+Every important mutation must be audited.
+
+Every relationship must be validated.
+
+Every important workflow must be transactional where necessary.
+
+The final result should feel like a real enterprise Tuition Bureau management platform, not a template.
+
+---
+
+# START PHASE 2
+
+First inspect the existing Phase 1 implementation.
+
+Then:
+
+1. Plan the required schema changes.
+2. Extend Prisma schema.
+3. Create migration.
+4. Update seed data.
+5. Build backend models/services/controllers/routes.
+6. Implement validation.
+7. Implement RBAC.
+8. Implement tenant isolation.
+9. Build frontend pages.
+10. Build forms.
+11. Build tables.
+12. Build dashboards.
+13. Implement tutor matching.
+14. Implement lead conversion.
+15. Implement assignment workflow.
+16. Add audit logging.
+17. Add tests.
+18. Run all quality checks.
+19. Fix all errors.
+20. Verify that Phase 1 remains fully functional.
+
+Do not stop at UI implementation.
+
+Complete the backend, database, frontend, security, validation, testing, and business workflows.
+
+**Begin by inspecting the existing Phase 1 codebase.**
+
