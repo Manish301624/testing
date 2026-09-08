@@ -177,3 +177,1606 @@ pm2 save
 - Domain DNS point karo (A record → VPS IP)
 - Certbot se free SSL lagao
 - Live site test karo end-to-end
+
+
+
+******************************************************************************************************************************************************************************************************************************
+
+
+You are the lead software architect and senior full-stack engineer for an enterprise SaaS product.
+
+We are building a production-grade platform called:
+
+# TuitionBureau
+
+TuitionBureau is an enterprise tuition-management and tutoring marketplace platform connecting parents, students, tutors, coordinators, branch managers, and administrators.
+
+This is **PHASE 1: FOUNDATION**.
+
+Your job in this phase is to build the technical foundation correctly so that all future modules can be added without rewriting the architecture.
+
+IMPORTANT:
+
+Do NOT build the complete application yet.
+
+Do NOT implement payments, chat, attendance, tutor matching, reports, reviews, or advanced CRM features in this phase.
+
+Focus on creating a clean, secure, scalable foundation.
+
+---
+
+# 1. PRIMARY OBJECTIVE
+
+Create a production-ready full-stack monorepo with:
+
+* Frontend
+* Backend API
+* PostgreSQL database
+* ORM
+* Authentication
+* Role-based access control
+* Permission system
+* Multi-tenant architecture
+* Secure session/token handling
+* Database migrations
+* Seed data
+* API error handling
+* Request validation
+* Logging
+* Basic admin shell
+* Basic user management foundation
+* Environment configuration
+* Documentation
+
+The application must run locally after setup.
+
+---
+
+# 2. TECHNOLOGY STACK
+
+Use this stack unless there is a strong technical reason not to.
+
+## Frontend
+
+React
+TypeScript
+Vite
+React Router
+Tailwind CSS
+shadcn/ui
+Lucide React
+TanStack Query
+React Hook Form
+Zod
+
+## Backend
+
+Node.js
+TypeScript
+Express.js
+
+## Database
+
+PostgreSQL
+
+## ORM
+
+Use Prisma.
+
+## Authentication
+
+Use secure HTTP-only cookie based authentication where practical.
+
+Do NOT store authentication tokens in localStorage.
+
+Use secure password hashing with Argon2 or bcrypt.
+
+## Validation
+
+Use Zod.
+
+## API
+
+REST API.
+
+## Development
+
+Use npm unless the existing environment clearly requires another package manager.
+
+---
+
+# 3. PROJECT STRUCTURE
+
+Create a clean monorepo.
+
+Use a structure similar to:
+
+tuitionbureau/
+│
+├── apps/
+│   ├── web/
+│   │   ├── src/
+│   │   │   ├── components/
+│   │   │   ├── layouts/
+│   │   │   ├── pages/
+│   │   │   ├── routes/
+│   │   │   ├── hooks/
+│   │   │   ├── lib/
+│   │   │   ├── services/
+│   │   │   ├── types/
+│   │   │   └── main.tsx
+│   │   └── ...
+│   │
+│   └── api/
+│       ├── src/
+│       │   ├── config/
+│       │   ├── controllers/
+│       │   ├── middleware/
+│       │   ├── routes/
+│       │   ├── services/
+│       │   ├── repositories/
+│       │   ├── validators/
+│       │   ├── utils/
+│       │   ├── types/
+│       │   ├── app.ts
+│       │   └── server.ts
+│       └── ...
+│
+├── packages/
+│   ├── types/
+│   └── config/
+│
+├── prisma/
+│   ├── schema.prisma
+│   ├── migrations/
+│   └── seed.ts
+│
+├── docs/
+│
+├── .env.example
+├── README.md
+└── package.json
+
+Keep frontend and backend responsibilities clearly separated.
+
+---
+
+# 4. DATABASE DESIGN
+
+Create a proper PostgreSQL schema using Prisma.
+
+The foundation should support multi-tenancy from day one.
+
+Create these initial entities:
+
+## Organization
+
+Fields:
+
+id
+name
+slug
+email
+phone
+logoUrl
+status
+createdAt
+updatedAt
+
+Status:
+
+ACTIVE
+SUSPENDED
+TRIAL
+CANCELLED
+
+The slug must be unique.
+
+---
+
+# 5. BRANCH
+
+Create:
+
+Branch
+
+Fields:
+
+id
+organizationId
+name
+code
+address
+city
+state
+postalCode
+phone
+email
+status
+createdAt
+updatedAt
+
+A branch belongs to an organization.
+
+Organization → many branches.
+
+---
+
+# 6. USER
+
+Create the central User entity.
+
+Fields:
+
+id
+organizationId
+branchId
+firstName
+lastName
+email
+phone
+passwordHash
+avatarUrl
+status
+emailVerified
+lastLoginAt
+createdAt
+updatedAt
+deletedAt
+
+Statuses:
+
+ACTIVE
+INACTIVE
+SUSPENDED
+PENDING
+
+Email must be unique within the appropriate tenant scope.
+
+Use soft deletion where appropriate.
+
+---
+
+# 7. ROLES
+
+Create role architecture.
+
+Initial roles:
+
+SUPER_ADMIN
+ORG_ADMIN
+BRANCH_MANAGER
+COORDINATOR
+FINANCE_MANAGER
+SUPPORT_AGENT
+TUTOR
+PARENT
+STUDENT
+
+Do not hardcode authorization logic throughout controllers.
+
+Create proper role relationships.
+
+---
+
+# 8. PERMISSIONS
+
+Create granular permissions.
+
+Examples:
+
+dashboard.view
+
+users.view
+users.create
+users.update
+users.delete
+
+organizations.view
+organizations.update
+
+branches.view
+branches.create
+branches.update
+branches.delete
+
+tutors.view
+tutors.create
+tutors.update
+tutors.delete
+
+students.view
+students.create
+students.update
+students.delete
+
+parents.view
+parents.create
+parents.update
+parents.delete
+
+leads.view
+leads.create
+leads.update
+leads.delete
+leads.assign
+
+payments.view
+payments.create
+payments.update
+
+reports.view
+reports.export
+
+settings.view
+settings.update
+
+audit_logs.view
+
+Create:
+
+Role
+Permission
+RolePermission
+
+and the necessary UserRole relationship.
+
+The permission system must be reusable by every future module.
+
+---
+
+# 9. MULTI-TENANCY
+
+This is one of the most important architectural requirements.
+
+Every organization-owned resource must contain organizationId directly or be securely associated with an organization.
+
+Example:
+
+Organization
+↓
+Branches
+↓
+Users
+↓
+Future Students
+↓
+Future Tutors
+↓
+Future Leads
+↓
+Future Assignments
+↓
+Future Payments
+
+Never trust organizationId coming from the frontend.
+
+Determine the organization from the authenticated user's server-side context.
+
+A user from Organization A must NEVER be able to access Organization B's data.
+
+Implement tenant isolation at the service/repository layer.
+
+---
+
+# 10. SUPER ADMIN
+
+SUPER_ADMIN is the platform-level administrator.
+
+SUPER_ADMIN can manage:
+
+Organizations
+Branches
+Users
+Roles
+Permissions
+Platform settings
+
+Organization users must NOT have access to global platform data.
+
+Do not give SUPER_ADMIN special access merely by hiding frontend routes.
+
+Enforce authorization on the backend.
+
+---
+
+# 11. AUTHENTICATION
+
+Implement:
+
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/logout
+POST /api/auth/refresh
+GET /api/auth/me
+POST /api/auth/forgot-password
+POST /api/auth/reset-password
+
+If refresh tokens are used:
+
+* Store them securely.
+* Rotate refresh tokens.
+* Support revocation.
+* Never expose sensitive tokens unnecessarily.
+
+Use HTTP-only cookies where appropriate.
+
+Password requirements:
+
+* Minimum 8 characters
+* At least one uppercase letter
+* At least one lowercase letter
+* At least one number
+
+Never store plain-text passwords.
+
+---
+
+# 12. EMAIL VERIFICATION
+
+Create the architecture for:
+
+POST /api/auth/verify-email
+POST /api/auth/resend-verification
+
+For development, a safe development mechanism may be used instead of a real email provider.
+
+Do NOT hardcode real SMTP credentials.
+
+Create environment variables for future email integration.
+
+---
+
+# 13. PASSWORD RESET
+
+Implement secure password-reset architecture.
+
+Requirements:
+
+* Cryptographically secure reset token
+* Short expiration
+* One-time use
+* Token invalidation after successful reset
+* Never store raw reset tokens if avoidable
+* Do not reveal whether an email exists during forgot-password requests
+
+---
+
+# 14. AUTHENTICATION MIDDLEWARE
+
+Create middleware:
+
+authenticate
+
+It should:
+
+1. Read authentication securely.
+2. Validate session/token.
+3. Load user.
+4. Load organization context.
+5. Load branch context when applicable.
+6. Attach authenticated user context to request.
+
+Example server context:
+
+req.auth = {
+userId,
+organizationId,
+branchId,
+roles,
+permissions
+}
+
+Do not allow clients to override this context.
+
+---
+
+# 15. AUTHORIZATION MIDDLEWARE
+
+Create reusable middleware such as:
+
+requireAuth()
+requireRole(...)
+requirePermission(...)
+
+Example:
+
+requirePermission("users.view")
+
+and:
+
+requireRole("ORG_ADMIN", "SUPER_ADMIN")
+
+Keep authorization logic centralized.
+
+---
+
+# 16. API RESPONSE FORMAT
+
+Use a consistent API response structure.
+
+Success:
+
+{
+"success": true,
+"message": "Operation completed successfully",
+"data": {}
+}
+
+For lists:
+
+{
+"success": true,
+"message": "Users retrieved successfully",
+"data": [],
+"meta": {
+"page": 1,
+"limit": 20,
+"total": 100,
+"totalPages": 5
+}
+}
+
+Error:
+
+{
+"success": false,
+"message": "Validation failed",
+"errors": {}
+}
+
+Never return stack traces to production clients.
+
+---
+
+# 17. API ROUTES
+
+Create the initial route structure:
+
+/api/health
+
+/api/auth
+/api/users
+/api/organizations
+/api/branches
+/api/roles
+/api/permissions
+/api/settings
+/api/audit-logs
+
+Do not implement future business modules yet.
+
+Create placeholder architecture for:
+
+/api/tutors
+/api/parents
+/api/students
+/api/leads
+/api/tuition-requests
+/api/assignments
+/api/classes
+/api/attendance
+/api/payments
+/api/invoices
+/api/messages
+/api/notifications
+/api/reports
+
+Only create the structure if useful; do not build their business logic in Phase 1.
+
+---
+
+# 18. USER MANAGEMENT
+
+Build the foundation for an admin user-management screen.
+
+Admin should be able to:
+
+* View users
+* Search users
+* Filter by status
+* Filter by role
+* View user details
+* Create user
+* Update user
+* Activate user
+* Deactivate user
+
+Use server-side pagination.
+
+Do not load thousands of records into the browser.
+
+---
+
+# 19. ADMIN DASHBOARD SHELL
+
+Create the initial admin dashboard.
+
+Sidebar:
+
+Dashboard
+Users
+Organizations
+Branches
+Roles & Permissions
+Audit Logs
+Settings
+
+Future modules should have placeholders:
+
+Tutors
+Parents
+Students
+Leads
+Tuition Requests
+Assignments
+Classes
+Attendance
+Payments
+Reports
+
+Do not implement those modules yet.
+
+---
+
+# 20. ADMIN UI DESIGN
+
+Create a premium enterprise SaaS interface.
+
+Design characteristics:
+
+* Professional
+* Clean
+* Modern
+* Minimal
+* Responsive
+* Accessible
+* Enterprise-grade
+
+Use a deep blue/indigo primary design system.
+
+Use neutral backgrounds.
+
+Use cards sparingly.
+
+Use consistent spacing.
+
+Use professional typography.
+
+Avoid excessive gradients.
+
+Avoid cartoon illustrations.
+
+Avoid excessive animations.
+
+---
+
+# 21. ADMIN LAYOUT
+
+Create:
+
+Desktop sidebar
+Mobile navigation
+Top header
+Breadcrumbs
+Page title
+User menu
+Notification placeholder
+Organization selector where applicable
+
+Sidebar must collapse responsively.
+
+---
+
+# 22. DASHBOARD CONTENT
+
+Create a foundation dashboard with demo/real database statistics.
+
+Cards:
+
+Total Users
+Active Users
+Organizations
+Branches
+
+Also show:
+
+Recent Users
+Recent Audit Activity
+
+Use charts only if they provide value.
+
+Do not fabricate business statistics that do not exist in the database.
+
+---
+
+# 23. ORGANIZATION MANAGEMENT
+
+SUPER_ADMIN should have:
+
+Organization list
+Create organization
+View organization
+Edit organization
+Activate/suspend organization
+
+Organization detail page should show:
+
+Organization information
+Branches
+Users
+Status
+Created date
+
+Use pagination and filtering.
+
+---
+
+# 24. BRANCH MANAGEMENT
+
+Organization admins can manage their branches.
+
+Features:
+
+Create branch
+View branch
+Edit branch
+Activate/deactivate branch
+
+Branch managers should only see their permitted branch data.
+
+---
+
+# 25. AUDIT LOGGING
+
+Create an audit log system.
+
+Record security-sensitive and administrative actions.
+
+Fields:
+
+id
+organizationId
+userId
+action
+entity
+entityId
+oldValues
+newValues
+ipAddress
+userAgent
+createdAt
+
+Examples:
+
+USER_CREATED
+USER_UPDATED
+USER_DEACTIVATED
+LOGIN_SUCCESS
+LOGIN_FAILED
+PASSWORD_CHANGED
+ROLE_CHANGED
+ORGANIZATION_CREATED
+BRANCH_CREATED
+
+Do not allow ordinary users to modify audit logs.
+
+---
+
+# 26. SECURITY
+
+Implement:
+
+Helmet
+CORS
+Rate limiting
+Input validation
+SQL injection protection through Prisma
+XSS protection
+Secure cookies
+Password hashing
+Request size limits
+File-upload architecture
+Security headers
+
+Never expose:
+
+DATABASE_URL
+JWT secrets
+SMTP passwords
+API keys
+private credentials
+
+to the frontend.
+
+---
+
+# 27. ENVIRONMENT VARIABLES
+
+Create:
+
+.env.example
+
+Include variables similar to:
+
+DATABASE_URL=
+PORT=
+NODE_ENV=
+SESSION_SECRET=
+FRONTEND_URL=
+API_URL=
+
+If using additional authentication secrets, document them.
+
+Do not commit .env.
+
+Add .env to .gitignore.
+
+---
+
+# 28. DATABASE SEED
+
+Create realistic seed data.
+
+Create:
+
+1 organization
+2 branches
+1 super admin
+1 organization admin
+1 branch manager
+2 coordinators
+1 finance manager
+1 support agent
+3 tutors
+3 parents
+3 students
+
+Use obviously fake development accounts.
+
+Clearly document the development login credentials in README.md.
+
+Never use real personal information.
+
+---
+
+# 29. DATABASE INDEXING
+
+Add appropriate indexes.
+
+Important indexes include:
+
+organizationId
+branchId
+email
+status
+createdAt
+role relationships
+
+Composite indexes should be used where appropriate for tenant-scoped queries.
+
+---
+
+# 30. SOFT DELETE
+
+Use soft deletion for important business entities where appropriate.
+
+Do not physically delete records unnecessarily.
+
+Deleted records must not appear in normal queries.
+
+Create reusable patterns for soft deletion.
+
+---
+
+# 31. VALIDATION
+
+All incoming API data must be validated.
+
+Use Zod schemas.
+
+Validate:
+
+* Email
+* Password
+* UUID/IDs
+* Pagination
+* Search
+* Status
+* Organization data
+* Branch data
+* User data
+
+Never trust frontend validation alone.
+
+---
+
+# 32. PAGINATION
+
+Create a reusable pagination system.
+
+Default:
+
+page = 1
+limit = 20
+
+Maximum:
+
+limit = 100
+
+Return:
+
+page
+limit
+total
+totalPages
+
+---
+
+# 33. SEARCH
+
+Create reusable server-side search patterns.
+
+Example:
+
+GET /api/users?page=1&limit=20&search=john&status=ACTIVE
+
+Do not construct unsafe raw SQL from search input.
+
+---
+
+# 34. ERROR HANDLING
+
+Create centralized Express error handling.
+
+Handle:
+
+ValidationError
+AuthenticationError
+AuthorizationError
+NotFoundError
+ConflictError
+DatabaseError
+UnexpectedError
+
+Return safe client messages.
+
+Log technical details server-side.
+
+---
+
+# 35. LOGGING
+
+Implement structured server logging.
+
+Development:
+
+Readable console logs.
+
+Production architecture:
+
+JSON structured logs.
+
+Log:
+
+* Requests
+* Errors
+* Authentication events
+* Important administrative actions
+
+Never log passwords, tokens, or sensitive credentials.
+
+---
+
+# 36. FRONTEND AUTH STATE
+
+Implement:
+
+AuthProvider or equivalent centralized auth state.
+
+Functions:
+
+login()
+logout()
+getCurrentUser()
+refreshSession()
+
+Protect frontend routes.
+
+However:
+
+Frontend route protection is only UX protection.
+
+Backend authorization remains the actual security boundary.
+
+---
+
+# 37. ROUTING
+
+Create:
+
+/login
+/register
+/forgot-password
+/reset-password
+
+/admin
+/admin/users
+/admin/organizations
+/admin/branches
+/admin/roles
+/admin/audit-logs
+/admin/settings
+
+Create protected routes.
+
+Unauthenticated users must be redirected to login.
+
+Unauthorized users must see a proper 403 page.
+
+---
+
+# 38. UI COMPONENT SYSTEM
+
+Create reusable components:
+
+Button
+Input
+Select
+Textarea
+Modal
+Dialog
+Dropdown
+Table
+Pagination
+Badge
+Card
+Tabs
+Toast
+Alert
+LoadingSpinner
+Skeleton
+EmptyState
+ConfirmDialog
+
+Use shadcn/ui where appropriate.
+
+---
+
+# 39. DATA TABLE
+
+Create a reusable enterprise data table.
+
+Features:
+
+* Server-side pagination
+* Search
+* Sorting
+* Filtering
+* Loading state
+* Empty state
+* Error state
+* Row actions
+
+Build it so future modules can reuse it.
+
+---
+
+# 40. RESPONSIVENESS
+
+The application must work correctly on:
+
+Desktop
+Laptop
+Tablet
+Mobile
+
+Do not simply shrink desktop layouts.
+
+Design mobile layouts intentionally.
+
+---
+
+# 41. ACCESSIBILITY
+
+Use:
+
+Semantic HTML
+Accessible labels
+Keyboard navigation
+Focus states
+ARIA where necessary
+Accessible dialogs
+Accessible tables
+
+Forms must clearly indicate validation errors.
+
+---
+
+# 42. FRONTEND API CLIENT
+
+Create a centralized API client.
+
+Example:
+
+src/lib/api.ts
+
+Handle:
+
+* Base URL
+* Authentication
+* JSON
+* Errors
+* Request cancellation where useful
+
+Do not duplicate fetch configuration throughout the application.
+
+---
+
+# 43. TANSTACK QUERY
+
+Use TanStack Query for server state.
+
+Create reusable query hooks.
+
+Examples:
+
+useCurrentUser()
+useUsers()
+useOrganizations()
+useBranches()
+
+Handle:
+
+Loading
+Error
+Success
+Refetch
+Caching
+Invalidation
+
+---
+
+# 44. FORM ARCHITECTURE
+
+Use:
+
+React Hook Form
+Zod
+
+Create reusable form patterns.
+
+Do not duplicate validation logic separately between frontend and backend if schemas can safely be shared.
+
+---
+
+# 45. DATABASE MIGRATIONS
+
+Create proper Prisma migrations.
+
+Do not rely on manually changing production databases.
+
+Document:
+
+npm run db
+npm run db
+
+or equivalent commands.
+
+---
+
+# 46. PACKAGE SCRIPTS
+
+Create useful root commands.
+
+Examples:
+
+npm run dev
+npm run build
+npm run test
+npm run lint
+npm run format
+npm run db
+npm run db
+npm run db
+
+Make sure scripts actually work.
+
+---
+
+# 47. README
+
+Create a professional README containing:
+
+Project overview
+Architecture
+Technology stack
+Requirements
+Installation
+Environment variables
+Database setup
+Migration
+Seed
+Development
+Production build
+Testing
+Authentication
+RBAC
+Multi-tenancy
+Project structure
+
+Include development credentials for seeded fake users.
+
+---
+
+# 48. DOCUMENTATION
+
+Create:
+
+docs/architecture.md
+docs/authentication.md
+docs/rbac.md
+docs/multi-tenancy.md
+docs/database.md
+docs/api.md
+
+Keep documentation synchronized with implementation.
+
+---
+
+# 49. TESTING
+
+Create initial automated tests.
+
+At minimum test:
+
+Authentication
+Login
+Logout
+Invalid credentials
+Protected routes
+Role authorization
+Permission authorization
+Tenant isolation
+User creation
+User update
+Organization access
+
+Critical test:
+
+Create Organization A and Organization B.
+
+Create users for both.
+
+Verify that Organization A users cannot access Organization B resources.
+
+---
+
+# 50. TENANT SECURITY TEST
+
+This test is mandatory.
+
+Attempt:
+
+GET /api/users?organizationId=OTHER_ORGANIZATION
+
+The server must ignore the client-supplied organization ID and use the authenticated user's organization context.
+
+The request must never expose another tenant's data.
+
+---
+
+# 51. PRODUCTION SAFETY
+
+Before declaring Phase 1 complete, verify:
+
+* No hardcoded secrets
+* No passwords in source code
+* No API keys in source code
+* No tenant bypass
+* No unrestricted admin routes
+* No raw SQL injection vulnerabilities
+* No sensitive information returned unnecessarily
+* No authentication tokens in localStorage
+* No stack traces returned in production
+* No CORS wildcard in production
+* No unsafe file access
+
+---
+
+# 52. HEALTH CHECK
+
+Create:
+
+GET /api/health
+
+Return something like:
+
+{
+"success": true,
+"status": "healthy"
+}
+
+Optionally include:
+
+database connectivity
+application version
+environment
+
+Do not expose sensitive infrastructure information.
+
+---
+
+# 53. FINAL QUALITY CHECK
+
+Before finishing Phase 1, run:
+
+TypeScript compilation
+Lint
+Tests
+Database migration
+Database seed
+Frontend build
+Backend build
+
+Fix all errors.
+
+Do not leave known TypeScript errors.
+
+Do not leave broken imports.
+
+Do not leave placeholder TODOs for functionality that is supposed to be implemented in Phase 1.
+
+---
+
+# 54. IMPORTANT DEVELOPMENT RULE
+
+Do not create fake implementations just to make the UI look complete.
+
+If a feature belongs to a future phase, create a clean placeholder and clearly mark it as coming later.
+
+Prioritize working architecture over visual quantity.
+
+---
+
+# 55. PHASE 1 BOUNDARY
+
+The following are explicitly OUT OF SCOPE for Phase 1:
+
+❌ Tutor matching engine
+❌ Lead CRM
+❌ Tuition request workflow
+❌ Attendance
+❌ Class scheduling
+❌ Payments
+❌ Invoices
+❌ Commission
+❌ Tutor marketplace
+❌ Reviews
+❌ Chat
+❌ Push notifications
+❌ Advanced analytics
+❌ AI features
+
+Those will be implemented in later phases.
+
+---
+
+# 56. IMPLEMENTATION ORDER
+
+Follow this exact order:
+
+STEP 1
+Inspect the current project/environment.
+
+If the project is empty, initialize it.
+
+If an existing project exists, preserve useful existing work.
+
+STEP 2
+Create the monorepo structure.
+
+STEP 3
+Configure TypeScript.
+
+STEP 4
+Configure React/Vite/Tailwind/shadcn.
+
+STEP 5
+Configure Express/TypeScript.
+
+STEP 6
+Configure PostgreSQL and Prisma.
+
+STEP 7
+Create database schema.
+
+STEP 8
+Create Prisma migration.
+
+STEP 9
+Create seed data.
+
+STEP 10
+Implement authentication.
+
+STEP 11
+Implement RBAC.
+
+STEP 12
+Implement multi-tenancy.
+
+STEP 13
+Implement API middleware.
+
+STEP 14
+Implement users API.
+
+STEP 15
+Implement organizations API.
+
+STEP 16
+Implement branches API.
+
+STEP 17
+Implement audit logging.
+
+STEP 18
+Create frontend authentication.
+
+STEP 19
+Create protected routes.
+
+STEP 20
+Create admin dashboard shell.
+
+STEP 21
+Create user management UI.
+
+STEP 22
+Create organization management UI.
+
+STEP 23
+Create branch management UI.
+
+STEP 24
+Create roles/permissions UI foundation.
+
+STEP 25
+Create audit log UI.
+
+STEP 26
+Create tests.
+
+STEP 27
+Run complete build/test verification.
+
+---
+
+# 57. IMPORTANT RULE FOR AI CODING
+
+Do not dump the entire project into one giant file.
+
+Use modular files.
+
+Do not create 1,000-line components.
+
+Do not put database queries directly inside React components.
+
+Do not put business logic directly inside Express route definitions.
+
+Use:
+
+Routes
+→ Controllers
+→ Services
+→ Repositories
+→ Prisma
+
+where appropriate.
+
+Frontend:
+
+Pages
+→ Components
+→ Hooks
+→ API Client
+→ TanStack Query
+
+---
+
+# 58. BEFORE WRITING CODE
+
+First inspect the environment and determine:
+
+* Existing files
+* Existing package manager
+* Existing dependencies
+* Existing database configuration
+* Existing application structure
+
+If the project is empty, proceed with the architecture above.
+
+If something already exists, do not destroy working code unnecessarily.
+
+---
+
+# 59. RESPONSE FORMAT
+
+At the beginning, briefly tell me:
+
+1. What you found in the current project.
+2. What architecture you will use.
+3. What you are implementing in Phase 1.
+4. What you are deliberately NOT implementing yet.
+
+Then implement the work.
+
+After implementation, provide:
+
+## Completed
+
+List what actually works.
+
+## Database
+
+List created tables/models and relationships.
+
+## API
+
+List implemented endpoints.
+
+## Authentication
+
+Explain the authentication flow.
+
+## RBAC
+
+Explain roles and permissions.
+
+## Multi-tenancy
+
+Explain how tenant isolation is enforced.
+
+## Testing
+
+Show tests executed and their results.
+
+## Run Instructions
+
+Give exact commands to run the project.
+
+## Next Phase
+
+Recommend Phase 2 based on the architecture.
+
+Do not claim something works unless you actually verified it.
+
+---
+
+# FINAL INSTRUCTION
+
+Act as the lead engineer, not as a code autocomplete tool.
+
+Think about scalability, security, maintainability, database integrity, tenant isolation, authorization, and future feature expansion before implementing.
+
+The most important requirement is:
+
+**Build a strong foundation now so that the future TuitionBureau modules can be added without architectural rewrites.**
+
+Start Phase 1 now.
+
+
+
+=========================================================================================================================================================================================================================================================================
+DATABASE_URL="postgresql://postgres:123456@localhost:5432/tuitionbureau?schema=public"
+
+JWT_ACCESS_SECRET="PASTE_A_RANDOM_LONG_SECRET_HERE"
+JWT_REFRESH_SECRET="PASTE_A_DIFFERENT_RANDOM_LONG_SECRET_HERE"
+SESSION_SECRET="PASTE_ANOTHER_RANDOM_LONG_SECRET_HERE"
+
+FRONTEND_URL="http://localhost:5173"
+API_URL="http://localhost:5000"
+
+NODE_ENV="development"
+PORT="5000"
