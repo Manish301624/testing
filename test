@@ -1,0 +1,263 @@
+# Shopify Print Collection — Tiered Quantity Pricing (Context Handoff)
+
+## Requirement
+Ek "Prints" collection ke liye tiered pricing offer chahiye:
+- **Base price per print: ₹65,000**
+- Offer sirf exact quantities **2, 4, 6** pe apply hoga
+- Quantities **1, 3, 5 (aur 7+)** pe koi offer nahi — base price hi lagega
+- Offer sirf iss ek collection pe scoped hai, baaki store pe koi effect nahi
+
+### Pricing table (from screenshot)
+| Prints | Price/Print | Total Price | Savings |
+|---|---|---|---|
+| 1 | ₹65,000 | ₹65,000 | — (no offer) |
+| 2 | ₹60,000 | ₹1,20,000 | ₹10,000 |
+| 3 | ₹65,000 | ₹1,95,000 | — (no offer, base rate) |
+| 4 | ₹55,000 | ₹2,20,000 | ₹40,000 |
+| 5 | ₹65,000 | ₹3,25,000 | — (no offer, base rate) |
+| 6 | ₹50,000 | ₹3,00,000 | ₹90,000 |
+
+## Approach
+Shopify **Discount Function** (JavaScript, target `cart.lines.discounts.generate.run`, API version `2026-01`) — no theme code touched, no product price changed in DB, isolated app extension, fully reversible by deactivating the discount.
+
+Optional cosmetic addition: a Liquid snippet showing a "You Saved ₹X" banner on the cart page/drawer using `cart.cart_level_discount_applications`.
+
+---
+
+## File 1: `shopify.extension.toml`
+```toml
+api_version = "2026-01"
+
+[[extensions]]
+name = "Print Collection Tiered Pricing"
+handle = "print-collection-tiered-pricing"
+type = "function"
+description = "Tiered pricing for 2/4/6 prints only - scoped to Prints collection"
+
+  [[extensions.targeting]]
+  target = "cart.lines.discounts.generate.run"
+  input_query = "src/cart_lines_discounts_generate_run.graphql"
+  export = "cart_lines_discounts_generate_run"
+
+[extensions.build]
+command = ""
+path = "dist/function.wasm"
+```
+
+## File 2: `src/cart_lines_discounts_generate_run.graphql`
+```graphql
+query RunInput {
+  cart {
+    lines {
+      id
+      quantity
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+          product {
+            id
+            # Replace with your actual collection GID
+            inAnyCollection(ids: ["gid://shopify/Collection/REPLACE_WITH_YOUR_COLLECTION_ID"])
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+## File 3: `src/cart_lines_discounts_generate_run.js`
+```javascript
+// @ts-check
+import { OrderDiscountSelectionStrategy } from "../generated/api";
+
+/**
+ * @typedef {import("../generated/api").CartInput} CartInput
+ * @typedef {import("../generated/api").CartLinesDiscountsGenerateRunResult} CartLinesDiscountsGenerateRunResult
+ */
+
+const BASE_PRICE = 65000; // ek print ka normal rate
+
+// Sirf ye exact quantities offer ke eligible hain — baaki sab (1,3,5,7+) pe base price hi lagega
+const TIER_TOTALS = {
+  2: 120000,
+  4: 220000,
+  6: 300000,
+};
+
+const EMPTY_DISCOUNT = { operations: [] };
+
+/**
+ * @param {CartInput} input
+ * @returns {CartLinesDiscountsGenerateRunResult}
+ */
+export function cart_lines_discounts_generate_run(input) {
+  // Sirf target collection ke variants filter karo
+  const collectionLines = input.cart.lines.filter((line) => {
+    return (
+      line.merchandise.__typename === "ProductVariant" &&
+      line.merchandise.product.inAnyCollection === true
+    );
+  });
+
+  if (collectionLines.length === 0) {
+    return EMPTY_DISCOUNT;
+  }
+
+  const totalQty = collectionLines.reduce((sum, line) => sum + line.quantity, 0);
+
+  const tierTotal = TIER_TOTALS[totalQty];
+
+  // Agar qty 2/4/6 nahi hai (yaani 1,3,5,7+ hai) -> koi discount nahi, base price chalega
+  if (!tierTotal) {
+    return EMPTY_DISCOUNT;
+  }
+
+  const currentSubtotal = totalQty * BASE_PRICE;
+  const discountAmount = currentSubtotal - tierTotal;
+
+  if (discountAmount <= 0) {
+    return EMPTY_DISCOUNT;
+  }
+
+  // Collection ke bahar ke saare lines ko exclude karo, taki discount sirf inn print lines pe lage
+  const collectionLineIds = new Set(collectionLines.map((l) => l.id));
+  const excludedCartLineIds = input.cart.lines
+    .filter((line) => !collectionLineIds.has(line.id))
+    .map((line) => line.id);
+
+  return {
+    operations: [
+      {
+        orderDiscountsAdd: {
+          selectionStrategy: OrderDiscountSelectionStrategy.First,
+          candidates: [
+            {
+              message: `Print Collection Offer: ${totalQty} Prints @ Rs ${tierTotal.toLocaleString("en-IN")}`,
+              targets: [
+                {
+                  orderSubtotal: {
+                    excludedCartLineIds: excludedCartLineIds,
+                  },
+                },
+              ],
+              value: {
+                fixedAmount: {
+                  amount: discountAmount.toFixed(2),
+                },
+              },
+            },
+          ],
+        },
+      },
+    ],
+  };
+}
+```
+
+## File 4: `package.json`
+```json
+{
+  "name": "print-collection-tiered-pricing",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "shopify app function build"
+  },
+  "dependencies": {
+    "@shopify/shopify_function": "^1.0.0"
+  }
+}
+```
+
+---
+
+## Deployment steps
+1. **Collection GID nikaalo**: Shopify Admin → Products → Collections → apni collection open karo, URL se ID milega. Ya GraphiQL app se `query { collections(first:10) { edges { node { id title } } } }` chalao. Format: `gid://shopify/Collection/XXXXX`. Isse GraphQL file mein `REPLACE_WITH_YOUR_COLLECTION_ID` ki jagah daalo.
+2. **Shopify CLI setup**: `npm install -g @shopify/cli`. Agar custom/public app nahi hai to `shopify app init`.
+3. **Function extension generate karo**: App folder mein `shopify app generate extension` → "Function" → "Discount" → JavaScript template. Generated files ko upar diye 4 files ke content se replace karo.
+4. **Build/test**: `cd extensions/print-collection-tiered-pricing && npm install`, phir root se `shopify app dev`.
+5. **Deploy**: `shopify app deploy`. Phir Shopify Admin → Discounts → Create discount → apni app ka function select karo → Activate.
+6. **Test**: 1,2,3,4,5,6 quantities try karo — sirf 2,4,6 pe discount lagna chahiye.
+
+### Important notes
+- Plan-agnostic — Basic/Advanced/Plus sab pe kaam karega, sirf app dev capability chahiye.
+- Product price ₹65,000 flat hi rakho Admin mein — discount checkout time pe adjust hota hai.
+- Naya tier add karna ho (jaise 8 prints) to bas `TIER_TOTALS` object mein entry add karo.
+- Theme code, product data, doosri collections — kuch bhi touch nahi hota. Deactivate karne pe sab turant normal.
+
+---
+
+## Optional Cosmetic Addition — "You Saved ₹X" Cart Banner
+
+### File 5: `snippets/cart-savings-banner.liquid`
+```liquid
+{%- comment -%}
+  Cart Savings Banner
+  Shows "You Saved ₹X" for any cart-level automatic discount (e.g. Print Collection Tiered Pricing)
+  Usage: {% render 'cart-savings-banner' %}
+{%- endcomment -%}
+
+{%- if cart.cart_level_discount_applications.size > 0 -%}
+  <div class="cart-savings-banner" role="status">
+    {%- for discount in cart.cart_level_discount_applications -%}
+      <div class="cart-savings-banner__item">
+        <svg class="cart-savings-banner__icon" width="16" height="16" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M9 1.5L11.163 5.876L16 6.545L12.5 9.955L13.326 14.75L9 12.5L4.674 14.75L5.5 9.955L2 6.545L6.837 5.876L9 1.5Z" fill="currentColor"/>
+        </svg>
+        <span class="cart-savings-banner__text">
+          {{ discount.title }} — You Saved {{ discount.total_allocated_amount | money }}
+        </span>
+      </div>
+    {%- endfor -%}
+  </div>
+
+  {% style %}
+    .cart-savings-banner {
+      background: #eafbe7;
+      border: 1px solid #8fd19e;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin: 12px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .cart-savings-banner__item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #1a7431;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .cart-savings-banner__icon {
+      flex-shrink: 0;
+      color: #1a7431;
+    }
+    @media (max-width: 749px) {
+      .cart-savings-banner__text {
+        font-size: 13px;
+      }
+    }
+  {% endstyle %}
+{%- endif -%}
+```
+
+### Placement steps
+1. Shopify Admin → Online Store → Themes → "..." → Edit code.
+2. Snippets → Add a new snippet → name: `cart-savings-banner` → paste code above → Save.
+3. Open `sections/main-cart-items.liquid` (naam theme ke hisaab se alag ho sakta hai) → cart items table/loop shuru hone se pehle add karo: `{% render 'cart-savings-banner' %}`
+4. Open `snippets/cart-drawer.liquid` → drawer ke andar cart items list shuru hone se pehle wahi line add karo.
+5. Save, test — 2 ya 4 prints cart mein daalo, banner dikhna chahiye.
+
+**Note**: Exact line placement theme-specific hai (Dawn vs custom theme). Agar apni theme ki `main-cart-items.liquid` / `cart-drawer.liquid` files share karoge, exact jagah bata sakte hain.
+
+---
+
+## Open questions / pending from Dev
+- Collection GID abhi tak share nahi hui — placeholder use kiya gaya hai.
+- Confirm karna hai: Shopify Partner account / existing custom app already hai ya naya setup karna hoga.
+- Cart page/drawer file names confirm karne hain (theme-specific).
