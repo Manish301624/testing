@@ -1,0 +1,228 @@
+i want to deploy by git clone. give me all steps one by one
+  
+1. GitHub Repo Banao Aur Code Push KaroLocal computer pe project folder mein: 'git init', 'git remote add origin https://github.com/username/repo.git', '.gitignore' file banao (usme node_modules, dist, .env likh do taki secrets/build files push na ho), phir 'git add .', 'git commit -m "initial commit"', 'git push -u origin main'. GitHub pe repo private rakhna (Settings → Create private repository).
+2. VPS + CloudPanel Ready KaroHostinger se KVM 2 VPS purchase karo (agar abhi tak nahi kiya), OS template mein 'Ubuntu 24.04 with CloudPanel' select karo. hPanel se VPS IP address note karo. Browser mein https://VPS-IP:8443 khol ke CloudPanel admin login karo.
+3. Node.js, pnpm, PM2, Git Install/Confirm KaroSSH se VPS mein login karo ('ssh root@VPS-IP'). Phir: nvm install karo aur Node 22 activate karo, 'npm install -g pnpm pm2' chalao Node.js aur PM2 (process manager) ko globally available banane ke liye. Git usually pre-installed hota hai Ubuntu mein, 'git --version' se confirm kar lo.
+4. PostgreSQL Database Banao (Aur Backup Restore Karo Agar Hai)CloudPanel dashboard → Databases → Add Database, PostgreSQL select karo, DB name/user/password set karo, note kar lo. Agar tumhare paas pehle se koi backup .sql file hai, use SFTP se upload karke restore karo: 'psql "postgresql://user:pass@localhost:5432/dbname" -f backup.sql'. Naya project hai to ye step tab karna jab schema/migrations ready ho.
+5. GitHub Se Project Clone KaroVPS pe SSH se site ke htdocs folder mein jao (jo CloudPanel site create karte waqt banega, step 6 mein), phir: 'git clone https://github.com/username/repo.git .' — agar repo private hai, GitHub Personal Access Token password ki jagah use karna hoga (GitHub → Settings → Developer settings → Personal access tokens se bana sakte ho).
+6. Dependencies Install, Env Vars Set, Build KaroProject root mein 'pnpm install' chalao. Phir environment variables set karo — CloudPanel Node.js site ke 'Environment Variables' section mein ya '.env' file bana ke: NODE_ENV=production, PORT, DATABASE_URL, SESSION_SECRET, TRUST_PROXY_HOPS=1, BASE_PATH=/. Sab set hone ke baad 'pnpm run build' chalao — ye backend (dist/index.mjs) aur frontend (dist/public) dono build karega.
+7. CloudPanel Mein Node.js Site + Static Site Add KaroCloudPanel → Sites → Add Site → 'Create a Node.js Site': backend domain daalo, app path 'artifacts/api-server' set karo, start command 'node --enable-source-maps dist/index.mjs'. Phir dusra Site → 'Create a Static Site': main domain daalo, document root 'artifacts/supportdesk-web/dist/public' set karo. Static site ke Vhost tab mein '/api' proxy_pass rule add karo backend ke port pe (jo maine pehle exact Nginx config diya tha).
+8. SSL Enable Karo Aur deploy.sh Setup KaroDono sites ke 'SSL/TLS' tab mein jao (domain DNS pehle se VPS IP pe point hona chahiye), 'New Let's Encrypt Certificate' create karo — free, auto-renew. Phir 'deploy.sh' script project root mein daalo, 'chmod +x deploy.sh' chalao. Ab future mein sirf 'git push' (local se) + 'bash deploy.sh' (server pe) se live update ho jayega.
+  
+Ye poora flow hai — GitHub push se lekar live site tak, sab 8 steps mein cover ho gaya, git clone approach ke saath (zip upload nahi).
+**Order important hai** — step 5 (git clone) actually step 7 (Node.js site create) ke baad bhi ho sakta hai, kyunki CloudPanel site create karte waqt hi `htdocs` folder banta hai jahan clone karna hai. Practical order: **Step 2 → 3 → 7 (sites create karo pehle, empty) → 5 (clone) → 4 (DB) → 6 (build) → 8 (SSL+script)**. Card mein maine logical grouping ke hisaab se likha hai, but real terminal session mein thoda aage-peeche ho sakta hai — koi dikkat nahi. 
+Jahan bhi atko (chahe GitHub token banana ho, SSH connect na ho, ya CloudPanel mein koi field na dikhe), exact wahi step bata dena — main us specific step ka detailed walkthrough/commands de dunga.
+
+**************************************************************************************************************************************************************************************************
+
+GitHub setup thoda samjha deta hoon (agar abhi tak repo nahi bana), phir deploy script.
+
+1.GitHub Repo Banao Aur Code Push KaroApne local project ko GitHub pe push karo (agar abhi tak nahi kiya): 'git init', 'git remote add origin <tumhara-repo-url>', 'git add .', 'git commit -m init', 'git push origin main'. Private repo rakhna behtar hai kyunki isme .env secrets ho sakte hain (.gitignore mein DATABASE_URL wagera zaroor daalna).
+2.VPS Pe Repo Clone Karo (Zip Ki Jagah)VPS pe SSH karo, purana zip-wala folder hata do (ya rename kar do), phir git se clone karo: 'git clone https://github.com/username/repo.git SupportDesk-Web-App'. Private repo hai to GitHub Personal Access Token use karna padega password ki jagah.
+3.deploy.sh Ko Server Pe Rakhodeploy.sh file ko project root mein daalo (SFTP se ek baar upload karo, ya seedha 'nano deploy.sh' se paste kar do). Uske andar PROJECT_DIR, GIT_BRANCH, PM2_APP_NAME apne actual values se update karo.
+4.Script Ko Executable Banao'chmod +x deploy.sh' chalao taki script executable ban jaye. Ye sirf ek baar karna hai.
+5.Environment Variables VPS Pe Already Set Hone ChahiyeEnvironment variables (.env file ya CloudPanel ke Node.js site settings mein) already set hone chahiye — ye git repo mein nahi jaate (security ke liye), isliye VPS pe alag se set karne padte hain, ek baar.
+
+Uske Baad — Har Future Update Bas Ye:
+
+# Local mein: code change karo, commit-push karo
+git add .
+git commit -m "changed banner image"
+git push origin main
+
+# VPS pe SSH karke:
+bash deploy.sh
+
+ 
+  #!/bin/bash
+# ==========================================================
+# SupportDesk-Web-App — Git-based Deploy Script
+# Server par chalane ke liye: bash deploy.sh
+# ==========================================================
+
+set -e  # koi bhi command fail ho to script turant ruk jaye
+
+# ---- CONFIG: apne hisaab se ye 3 lines edit karo ----
+PROJECT_DIR="/home/YOUR_SITE_USER/htdocs/SupportDesk-Web-App"
+GIT_BRANCH="main"
+PM2_APP_NAME="supportdesk-api"
+# ------------------------------------------------------
+
+echo ""
+echo "🚀 Deploy shuru ho raha hai — $(date '+%Y-%m-%d %H:%M:%S')"
+echo "----------------------------------------------------"
+
+cd "$PROJECT_DIR"
+
+echo "📥 [1/5] Latest code GitHub se pull kar rahe hain ($GIT_BRANCH)..."
+git fetch origin "$GIT_BRANCH"
+git reset --hard "origin/$GIT_BRANCH"
+
+echo "📦 [2/5] Dependencies install kar rahe hain (pnpm)..."
+pnpm install
+
+echo "🔨 [3/5] Project build kar rahe hain (backend + frontend)..."
+pnpm run build
+
+echo "🔁 [4/5] Backend restart kar rahe hain (PM2)..."
+if pm2 describe "$PM2_APP_NAME" > /dev/null 2>&1; then
+  pm2 restart "$PM2_APP_NAME"
+else
+  echo "⚠️  PM2 process '$PM2_APP_NAME' nahi mila — pehli baar start kar rahe hain..."
+  cd "$PROJECT_DIR/artifacts/api-server"
+  pm2 start dist/index.mjs --name "$PM2_APP_NAME" --node-args="--enable-source-maps"
+  pm2 save
+  cd "$PROJECT_DIR"
+fi
+
+echo "✅ [5/5] Deploy complete!"
+echo "----------------------------------------------------"
+echo "Frontend build: $PROJECT_DIR/artifacts/supportdesk-web/dist/public"
+echo "Backend status:"
+pm2 status "$PM2_APP_NAME"
+echo ""
+echo "🎉 Live site check karo browser mein (hard refresh: Ctrl+Shift+R)"
+
+  *******************************************************************************************************************************************************************************************************************
+  Bhai, solid decision — KVM 2 tumhare requirement (fixed price + easy + full-stack support) ke liye best fit hai. Chalo isko finalize karte hain.
+
+Purchase Steps
+Hostinger website → VPS Hosting → KVM 2 select karo
+Plan duration choose karo (jitna zyada mahine, utna sasta per-month — 24 months plan ~₹799/mo tha jo screenshot mein dikha)
+OS/Template selection ke time — "Ubuntu 24.04 with CloudPanel" template zaroor select karna (ye pre-installed CloudPanel deta hai, manual install ki zarurat nahi)
+Data center location — India (Mumbai) select karna, agar option mile
+Payment complete karo
+Purchase Ke Baad — Next Steps (Order Mein)
+hPanel → VPS dashboard mein IP address milega
+Browser mein https://your-vps-ip:8443 khol ke CloudPanel login karo
+Domain ka DNS (A record) VPS IP pe point karo (GoDaddy/wherever domain liya hai)
+CloudPanel se PostgreSQL database create karo
+Tumhara SupportDesk zip upload/extract karo, dependencies install, build
+Node.js site + Static site dono CloudPanel se add karo (jo maine exact steps pehle diye the)
+SSL enable karo (Let's Encrypt, one-click)
+
+Jaise hi VPS purchase ho jaye aur CloudPanel access mil jaye, mujhe bata dena — main tumhare saath step-by-step, real-time chalta hoon: SSH connect karne se lekar SupportDesk live karne tak, jahan bhi error aaye turant fix karenge.
+
+Ek cheez confirm kar do: Domain already hai ya wo bhi Hostinger se hi lena hai?
+                 
+1.CloudPanel Login KaroBrowser mein https://your-vps-ip:8443 kholo (ya domain point kar diya hai to https://cloudpanel.yourdomain.com:8443). Admin username/password se login karo jo VPS purchase ke time set kiya tha.
+2.Node.js Site Add Karo (Backend — api-server)Left sidebar mein 'Sites' → 'Add Site' → 'Create a Node.js Site' select karo. Domain field mein apna backend domain/subdomain daalo (jaise api.yourdomain.com, ya same domain rakhna hai to yahan koi dummy subdomain bhi chalega kyunki hum baad mein /api proxy karenge). Node.js version 22 select karo (dropdown mein milega).
+3.App Path Aur Start Command Set KaroSite create hone ke baad, uske 'Node.js' tab mein jao. App root path set karo: /home/<site-user>/htdocs/SupportDesk-Web-App/artifacts/api-server. App start command: node --enable-source-maps dist/index.mjs. Ye backend ko PM2 ke through CloudPanel khud manage karega (auto-restart on crash/reboot).
+4.Backend Ke Environment Variables Add KaroSame Node.js site ke 'Environment Variables' section mein ye sab add karo: NODE_ENV=production, PORT (CloudPanel jo assign kare), DATABASE_URL (postgresql://user:pass@localhost:5432/dbname), SESSION_SECRET (32+ char random string), TRUST_PROXY_HOPS=1, EMAIL_USER, EMAIL_PASS (agar email feature chahiye). Save karke site restart karo.
+5.Static Site Add Karo (Frontend — supportdesk-web)Phir se 'Sites' → 'Add Site' → 'Create a Static Site' select karo. Domain field mein apna main domain daalo (jaise yourdomain.com — ye wahi domain hoga jo users browser mein type karenge).
+6.Document Root Set KaroStatic site ke settings mein 'Document Root' ko point karo: /home/<site-user>/htdocs/SupportDesk-Web-App/artifacts/supportdesk-web/dist/public — yahi tumhara built React frontend hai jo build step mein generate hua tha.
+7./api Proxy Rule Add Karo (Vhost Editor Se)Static site ke 'Vhost' tab mein jao, existing Nginx config ke andar ek naya location /api {...} block add karo jo backend ke port (jo Node.js site ko assign hua) pe proxy_pass kare. Ye ensure karega ki frontend ke /api calls automatically backend tak pahunche, same domain se, koi CORS issue nahi hoga.
+8.SSL Enable Karo Dono Sites PeHar site (Node.js + Static) ke 'SSL/TLS' tab mein jao → 'New Let's Encrypt Certificate' → Create. Free SSL milega, auto-renew hoga. Domain DNS pehle se VPS IP pe point hona chahiye is step se pehle.
+                                                                                                                                                                                           
+2 important cheezein pehle se ready rakhna:
+Domain ka A record DNS VPS IP pe already point hona chahiye (SSL step ke liye zaroori)
+****************************************************************************************************************************************************************************************************************************
+  Type 1: Sirf Image/Asset Change (Chhota Change)
+
+Agar sirf ek image replace karni hai (logo, banner, etc.) aur code logic change nahi karna:
+
+Naya image file directly dist/public/assets/ folder mein CloudPanel File Manager se upload kar do (purani ko replace karke, same naam se)
+Rebuild ki zarurat nahi — turant live ho jayega
+Bas browser cache clear karna pad sakta hai (Ctrl+Shift+R) dekhne ke liye
+Type 2: Code/Section/Feature Change (Asli Development Change)
+
+Jab bhi tum React component, section layout, ya backend logic change karte ho — ye source code mein hota hai, jo already-built dist/ folder mein directly edit nahi hota. Poora cycle follow karna padta hai:                                                                                                                                                                                         
+                                                                                                                                                                                           
+Backend ka DATABASE_URL ready ho — jo Postgres restore step mein bana tha
+                                                                                                                                                                                           
+1.Local Mein Code Change KaroApne local computer pe (ya Replit pe jahan tum develop karte ho) React component/section/image jo bhi change karna hai, wahi source code files edit karo (jaise artifacts/supportdesk-web/src/... ke andar).
+2.Local Mein Test KaroLocal pe hi 'npm run dev' ya 'pnpm dev' chala ke browser mein check karo ki change sahi dikh raha hai, koi error to nahi aa raha.
+3.Fresh Build BanaoJab satisfied ho jao, project root se 'pnpm run build' chalao. Ye naya dist/public (frontend) aur dist/index.mjs (backend, agar backend change kiya) generate karega, updated code ke saath.
+4.Naya Build Server Pe Upload KaroNaya build hua 'dist' folder VPS pe upload karo (SFTP/FileZilla se), purane dist folder ko replace karke. Sirf changed files bhi copy kar sakte ho agar poora folder upload nahi karna.
+5.Backend Ho To Restart KaroAgar sirf frontend change kiya (static site), kuch restart nahi chahiye — turant live ho jayega. Agar backend (api-server) change kiya, CloudPanel ke Node.js site tab se ya SSH se 'pm2 restart supportdesk-api' chalao taki naya code load ho.
+6.Live Site Pe Verify KaroBrowser mein apni live site kholo (hard refresh Ctrl+Shift+R se), confirm karo ki naya change dikh raha hai aur kuch break nahi hua. 
+                                                                                                                                                                                           
+ Better Long-Term Option: Git-Based Auto Deploy
+Har baar manually SFTP se upload karna thoda repetitive hai. Better approach — GitHub repo bana lo, VPS pe project ko git clone karo (zip ki jagah), phir har update ke liye sirf ye 2 commands chalane padenge SSH se:                                                                                                                                                                                          
+
+ cd /home/site-user/htdocs/SupportDesk-Web-App
+git pull origin main
+pnpm install && pnpm run build
+pm2 restart supportdesk-api   # sirf agar backend change hua 
+                                                                                                                                                                                           
+                                                                                                                                                                                           
+git-based deploy script bana du taki future updates aasan ho jayen?
+Building a deployment script for git-based updates.
+Building a deployment script for git-based updates.
+
+Bhai, banate hain — pehle GitHub setup thoda samjha deta hoon (agar abhi tak repo nahi bana), phir deploy script.
+Created a file, shared files
+Ek Baari Ka Setup (Ye Karna Padega Pehle)
+
+    1
+    GitHub Repo Banao Aur Code Push KaroApne local project ko GitHub pe push karo (agar abhi tak nahi kiya): 'git init', 'git remote add origin <tumhara-repo-url>', 'git add .', 'git commit -m init', 'git push origin main'. Private repo rakhna behtar hai kyunki isme .env secrets ho sakte hain (.gitignore mein DATABASE_URL wagera zaroor daalna).
+    2
+    VPS Pe Repo Clone Karo (Zip Ki Jagah)VPS pe SSH karo, purana zip-wala folder hata do (ya rename kar do), phir git se clone karo: 'git clone https://github.com/username/repo.git SupportDesk-Web-App'. Private repo hai to GitHub Personal Access Token use karna padega password ki jagah.
+    3
+    deploy.sh Ko Server Pe Rakhodeploy.sh file ko project root mein daalo (SFTP se ek baar upload karo, ya seedha 'nano deploy.sh' se paste kar do). Uske andar PROJECT_DIR, GIT_BRANCH, PM2_APP_NAME apne actual values se update karo.
+    4
+    Script Ko Executable Banao'chmod +x deploy.sh' chalao taki script executable ban jaye. Ye sirf ek baar karna hai.
+    5
+    Environment Variables VPS Pe Already Set Hone ChahiyeEnvironment variables (.env file ya CloudPanel ke Node.js site settings mein) already set hone chahiye — ye git repo mein nahi jaate (security ke liye), isliye VPS pe alag se set karne padte hain, ek baar.
+                                                                                                                                                                                           
+ Uske Baad — Har Future Update Bas Ye:
+ # Local mein: code change karo, commit-push karo
+git add .
+git commit -m "changed banner image"
+git push origin main
+
+# VPS pe SSH karke:
+bash deploy.sh  
+                                                                                                                                                                                           
+-----------------------------------------------------------------------------------------------------------------------
+                                                                                                                                                                                           
+#!/bin/bash
+# ==========================================================
+# SupportDesk-Web-App — Git-based Deploy Script
+# Server par chalane ke liye: bash deploy.sh
+# ==========================================================
+
+set -e  # koi bhi command fail ho to script turant ruk jaye
+
+# ---- CONFIG: apne hisaab se ye 3 lines edit karo ----
+PROJECT_DIR="/home/YOUR_SITE_USER/htdocs/SupportDesk-Web-App"
+GIT_BRANCH="main"
+PM2_APP_NAME="supportdesk-api"
+# ------------------------------------------------------
+
+echo ""
+echo "🚀 Deploy shuru ho raha hai — $(date '+%Y-%m-%d %H:%M:%S')"
+echo "----------------------------------------------------"
+
+cd "$PROJECT_DIR"
+
+echo "📥 [1/5] Latest code GitHub se pull kar rahe hain ($GIT_BRANCH)..."
+git fetch origin "$GIT_BRANCH"
+git reset --hard "origin/$GIT_BRANCH"
+
+echo "📦 [2/5] Dependencies install kar rahe hain (pnpm)..."
+pnpm install
+
+echo "🔨 [3/5] Project build kar rahe hain (backend + frontend)..."
+pnpm run build
+
+echo "🔁 [4/5] Backend restart kar rahe hain (PM2)..."
+if pm2 describe "$PM2_APP_NAME" > /dev/null 2>&1; then
+  pm2 restart "$PM2_APP_NAME"
+else
+  echo "⚠️  PM2 process '$PM2_APP_NAME' nahi mila — pehli baar start kar rahe hain..."
+  cd "$PROJECT_DIR/artifacts/api-server"
+  pm2 start dist/index.mjs --name "$PM2_APP_NAME" --node-args="--enable-source-maps"
+  pm2 save
+  cd "$PROJECT_DIR"
+fi
+
+echo "✅ [5/5] Deploy complete!"
+echo "----------------------------------------------------"
+echo "Frontend build: $PROJECT_DIR/artifacts/supportdesk-web/dist/public"
+echo "Backend status:"
+pm2 status "$PM2_APP_NAME"
+echo ""
+echo "🎉 Live site check karo browser mein (hard refresh: Ctrl+Shift+R)"                                                                                                                                                                                        
+                                                                                                                                                                                           
+                                                                                                                                                                                           
