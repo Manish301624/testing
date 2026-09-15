@@ -154,16 +154,11 @@ Bhai, banate hain — pehle GitHub setup thoda samjha deta hoon (agar abhi tak r
 Created a file, shared files
 Ek Baari Ka Setup (Ye Karna Padega Pehle)
 
-    1
-    GitHub Repo Banao Aur Code Push KaroApne local project ko GitHub pe push karo (agar abhi tak nahi kiya): 'git init', 'git remote add origin <tumhara-repo-url>', 'git add .', 'git commit -m init', 'git push origin main'. Private repo rakhna behtar hai kyunki isme .env secrets ho sakte hain (.gitignore mein DATABASE_URL wagera zaroor daalna).
-    2
-    VPS Pe Repo Clone Karo (Zip Ki Jagah)VPS pe SSH karo, purana zip-wala folder hata do (ya rename kar do), phir git se clone karo: 'git clone https://github.com/username/repo.git SupportDesk-Web-App'. Private repo hai to GitHub Personal Access Token use karna padega password ki jagah.
-    3
-    deploy.sh Ko Server Pe Rakhodeploy.sh file ko project root mein daalo (SFTP se ek baar upload karo, ya seedha 'nano deploy.sh' se paste kar do). Uske andar PROJECT_DIR, GIT_BRANCH, PM2_APP_NAME apne actual values se update karo.
-    4
-    Script Ko Executable Banao'chmod +x deploy.sh' chalao taki script executable ban jaye. Ye sirf ek baar karna hai.
-    5
-    Environment Variables VPS Pe Already Set Hone ChahiyeEnvironment variables (.env file ya CloudPanel ke Node.js site settings mein) already set hone chahiye — ye git repo mein nahi jaate (security ke liye), isliye VPS pe alag se set karne padte hain, ek baar.
+    1.GitHub Repo Banao Aur Code Push KaroApne local project ko GitHub pe push karo (agar abhi tak nahi kiya): 'git init', 'git remote add origin <tumhara-repo-url>', 'git add .', 'git commit -m init', 'git push origin main'. Private repo rakhna behtar hai kyunki isme .env secrets ho sakte hain (.gitignore mein DATABASE_URL wagera zaroor daalna).
+    2.VPS Pe Repo Clone Karo (Zip Ki Jagah)VPS pe SSH karo, purana zip-wala folder hata do (ya rename kar do), phir git se clone karo: 'git clone https://github.com/username/repo.git SupportDesk-Web-App'. Private repo hai to GitHub Personal Access Token use karna padega password ki jagah.
+    3.deploy.sh Ko Server Pe Rakhodeploy.sh file ko project root mein daalo (SFTP se ek baar upload karo, ya seedha 'nano deploy.sh' se paste kar do). Uske andar PROJECT_DIR, GIT_BRANCH, PM2_APP_NAME apne actual values se update karo.
+    4.Script Ko Executable Banao'chmod +x deploy.sh' chalao taki script executable ban jaye. Ye sirf ek baar karna hai.
+    5.Environment Variables VPS Pe Already Set Hone ChahiyeEnvironment variables (.env file ya CloudPanel ke Node.js site settings mein) already set hone chahiye — ye git repo mein nahi jaate (security ke liye), isliye VPS pe alag se set karne padte hain, ek baar.
                                                                                                                                                                                            
  Uske Baad — Har Future Update Bas Ye:
  # Local mein: code change karo, commit-push karo
